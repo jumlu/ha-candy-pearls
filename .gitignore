@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+options.json
+*.db
+*.sqlite
+.venv/
+dist/
+build/

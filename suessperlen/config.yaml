@@ -1,0 +1,58 @@
+name: Süßperlen Harness
+version: "0.1.0"
+slug: suessperlen
+description: KI-Harness für das Süßigkeiten-Perlensystem (Signal + Claude, HA als Bank)
+url: https://github.com/jumlu/ha-candy-pearls
+arch:
+  - amd64
+  - aarch64
+init: false
+host_network: true
+startup: application
+boot: auto
+map: []
+
+options:
+  anthropic_api_key: ""
+  ha_token: ""
+  ha_base_url: "http://supervisor/core"
+  model: "claude-haiku-4-5-20251001"
+  max_tokens: 1024
+  memory_turns: 10
+  memory_minutes: 15
+  signal_api_url: "http://127.0.0.1:8090"
+  signal_number: "+4915678436884"
+  log_level: "info"
+  prices_entity: "input_text.perlen_preise"
+  whitelist_uuids:
+    - "84ed44a2-8af9-4225-9a81-0854b4d57eed"
+  accounts:
+    - name: "Henry"
+      recv_group_id: "DkTeNR9XAMFOyg3TfJ3cXJLQllYW3O5VHiWh1kyixMw="
+      send_group_id: "group.RGtUZU5SOVhBTUZPeWczVGZKM2NYSkxRbGxZVzNPNVZIaVdoMWt5aXhNdz0="
+      balance_entity: "input_number.perlen_henry"
+
+schema:
+  anthropic_api_key: password
+  ha_token: password
+  ha_base_url: str
+  model: str
+  max_tokens: int
+  memory_turns: int
+  memory_minutes: int
+  signal_api_url: str
+  signal_number: str
+  log_level: list(debug|info|warning|error)
+  prices_entity: str
+  whitelist_uuids:
+    - str
+  accounts:
+    - name: str
+      recv_group_id: str
+      send_group_id: str
+      balance_entity: str
+
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: Inbound-Webhook von HA
