@@ -42,6 +42,7 @@ class Settings:
     whitelist_uuids: list[str]
     accounts: list[AccountConfig]
     timezone: str = "UTC"
+    language: str = "en"
 
 
 def _load_options() -> dict[str, Any]:
@@ -65,6 +66,7 @@ def _load_options() -> dict[str, Any]:
         "whitelist_uuids": os.environ.get("WHITELIST_UUIDS", "").split(",") if os.environ.get("WHITELIST_UUIDS") else [],
         "accounts": json.loads(os.environ.get("ACCOUNTS", "[]")),
         "timezone": os.environ.get("TIMEZONE", "UTC"),
+        "language": os.environ.get("LANGUAGE", "en"),
     }
 
 
@@ -96,4 +98,5 @@ def load_settings() -> Settings:
         whitelist_uuids=opts.get("whitelist_uuids", []),
         accounts=accounts,
         timezone=opts.get("timezone", "UTC"),
+        language=opts.get("language", "en"),
     )

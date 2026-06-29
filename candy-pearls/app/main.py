@@ -19,7 +19,7 @@ from .config import AccountConfig, Settings, load_settings
 from .ha_client import HAClient
 from .harness import handle
 from .signal_client import SignalClient
-from . import refill
+from . import i18n, refill
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -61,8 +61,9 @@ async def lifespan(app: FastAPI):
     _signal = SignalClient(_settings)
     logger = logging.getLogger(__name__)
     logger.info(
-        "Candy Pearls started. Model=%s, Timezone=%s, Accounts=%s",
+        "Candy Pearls started. Model=%s, Language=%s, Timezone=%s, Accounts=%s",
         _settings.model,
+        _settings.language,
         _settings.timezone,
         [a.name for a in _settings.accounts],
     )
@@ -165,7 +166,7 @@ async def inbound(msg: InboundMessage):
             try:
                 await _signal.send(
                     account.send_group_id,
-                    "Konnte die Nachricht gerade nicht verarbeiten — bitte nochmal versuchen.",
+                    i18n.t("processing_error", _settings.language),
                 )
             except Exception:
                 pass

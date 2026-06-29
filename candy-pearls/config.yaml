@@ -29,6 +29,7 @@ options:
   signal_number: ""
   log_level: "info"
   timezone: "UTC"
+  language: "en"
   prices_entity: "input_text.perlen_preise"
   whitelist_uuids: []
   accounts: []
@@ -45,6 +46,7 @@ schema:
   signal_number: str
   log_level: list(debug|info|warning|error)
   timezone: str
+  language: list(en|de)
   prices_entity: str
   whitelist_uuids:
     - str

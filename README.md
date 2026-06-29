@@ -136,7 +136,7 @@ actions:
     data:
       group_id: "{{ trigger.to_state.attributes.full_envelope.dataMessage.groupInfo.groupId }}"
       sender_uuid: "{{ trigger.to_state.attributes.full_envelope.sourceUuid | default('') }}"
-      sender_name: "{{ trigger.to_state.attributes.full_envelope.sourceName | default('jemand') }}"
+      sender_name: "{{ trigger.to_state.attributes.full_envelope.sourceName | default('someone') }}"
       text: "{{ trigger.to_state.attributes.full_envelope.dataMessage.message }}"
 ```
 
@@ -155,6 +155,7 @@ actions:
 | `memory_minutes` | `15` | Max age of turns to include |
 | `signal_api_url` | `http://127.0.0.1:8090` | signal-cli-rest-api base URL |
 | `signal_number` | *(required)* | Sending Signal number |
+| `language` | `en` | Conversation language: `en` (English) or `de` (German) |
 | `timezone` | `UTC` | Local timezone for daily refill (e.g. `Europe/Berlin`) |
 | `prices_entity` | `input_text.perlen_preise` | HA entity holding the JSON price list |
 | `whitelist_uuids` | `[]` | UUIDs allowed to set/delete prices |

@@ -11,65 +11,41 @@ import anthropic
 from .config import AccountConfig, Settings
 from .ha_client import HAClient
 from .signal_client import SignalClient
-from . import memory
+from . import i18n, memory
 from .tools import TOOLS, ToolContext, run_tool
 
 logger = logging.getLogger(__name__)
 
 MAX_TOOL_ROUNDS = 6
 
-# ---------------------------------------------------------------------------
-# System prompt  (edit here — no code changes needed)
-# ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """\
-Du bist der Perlen-Assistent für ein Kinder-Belohnungssystem.
-Jede Perle entspricht 5 g Zucker.
+def _build_context_block(
+    account: AccountConfig,
+    sender_name: str,
+    is_admin: bool,
+    language: str,
+    balance: float | None = None,
+    prices: dict | None = None,
+) -> str:
+    """Build the per-turn context block injected into Claude's user message.
 
-**Wichtig — wer mit dir schreibt:**
-Du sprichst NICHT mit dem Kind selbst. Jede Signal-Gruppe gehört zu genau einem Kind
-(siehe Kontext-Block, Feld "Kind (Konto)"), aber die Nachrichten kommen von Eltern, Großeltern
-oder anderen Bezugspersonen dieses Kindes — sie berichten, was das Kind essen möchte
-oder bereits bekommen hat. Antworte entsprechend an die erwachsene Bezugsperson
-(Feld "Schreibt gerade" im Kontext-Block), nicht in Kindersprache.
-
-**Deine Rolle:**
-- Preis-Bewerter: Du schätzt, wie viele Perlen ein Produkt kostet.
-- Buchhalter-Assistent: Du buchst Perlen vom Konto des Kindes ab, nachdem die
-  Bezugsperson zugestimmt hat.
-- Du bist freundlich, klar und antwortest knapp auf Deutsch.
-
-**Preisfindung:**
-1. Schau zuerst in der Preisliste nach (Tool: list_prices). Tippfehler und Varianten matchen.
-2. Falls nicht gefunden: schätze den Zuckergehalt in Gramm → Perlen = ceil(Zucker_g / 5),
-   min 1, max = Kontolimit (siehe Kontext-Block, Feld "Maximaler Kontostand").
-3. Schlage immer erst vor und warte auf „ja" oder „nein" der Bezugsperson, BEVOR du buchst.
-
-**Buchungsregeln:**
-- NIEMALS ungefragt buchen — immer erst Vorschlag (propose), dann auf Bestätigung warten.
-- Nach „ja" (oder klarer Bestätigung): Tool book aufrufen.
-- Kontostände NIE selbst ausrechnen — immer get_balance aufrufen.
-- Wenn nicht genug Perlen: freundlich erklären und nicht buchen.
-
-**Korrekturen im Gespräch:**
-- Nutze den Gesprächsverlauf. Wenn die Bezugsperson sagt „nee, zwei Maoam", korrigiere
-  deinen Vorschlag.
-
-**Sicherheit:**
-- Preise setzen/löschen geht nur über Tools (set_price / delete_price).
-- Diese Tools prüfen selbst, ob der Absender berechtigt ist — nicht jede Bezugsperson in
-  einer Gruppe darf automatisch Preise ändern, nur wer auf der Whitelist steht.
-
-**Foto-Erkennung:**
-- TODO: Bildanhänge sind vorbereitet (attachment_path), aber die genaue Envelope-Struktur
-  eines Signal-Bildanhangs ist noch nicht verifiziert. Vision-Call daher noch nicht aktiv.
-
-**Antwort-Format:** Kurz, direkt, auf Deutsch.
-"""
-
-# ---------------------------------------------------------------------------
-# Main handler
-# ---------------------------------------------------------------------------
+    The block is NOT stored in memory — only the raw message text is, so
+    replayed history never contains stale balance/price snapshots.
+    """
+    L = lambda key: i18n.t(key, language)
+    admin_tag = L("label_admin") if is_admin else ""
+    header = (
+        f"{L('context_header')}\n"
+        f"{L('label_child')}: {account.name} | {L('label_sender')}: {sender_name}{admin_tag}\n"
+    )
+    if balance is None or prices is None:
+        return header + L("context_unavailable") + "\n"
+    return (
+        header
+        + f"{L('label_balance')}: {balance:.0f} {L('unit_pearls')}\n"
+        + f"{L('label_max_balance')}: {account.max_balance} {L('unit_pearls')}\n"
+        + f"{L('label_prices')}: {json.dumps(prices, ensure_ascii=False)}\n"
+    )
 
 
 async def handle(
@@ -86,40 +62,29 @@ async def handle(
 
     group_id = account.recv_group_id
     is_admin = sender_uuid in settings.whitelist_uuids
+    lang = settings.language
 
     # --- Load conversation history ---
-    # History contains only the raw message texts (no context snapshots), so
-    # replayed turns never show stale balance/price figures to Claude.
+    # History stores only raw message text (no context snapshots), so replayed
+    # turns never show stale balance/price figures to Claude.
     hist = memory.history(group_id, settings.memory_turns, settings.memory_minutes)
 
     # --- Build context block for the current turn only ---
-    # This snapshot is injected into the live Claude call but NOT stored in
-    # memory, preventing stale balance/price data from appearing in future turns.
+    # This snapshot is injected into the live Claude call but NOT stored in memory.
     try:
         balance = await ha.get_balance(account.balance_entity)
         prices = await ha.get_prices(settings.prices_entity)
-        context_block = (
-            f"[Kontext]\n"
-            f"Kind (Konto): {account.name} | Schreibt gerade: {sender_name}"
-            f"{' (Admin)' if is_admin else ''}\n"
-            f"Aktueller Kontostand: {balance:.0f} Perlen\n"
-            f"Maximaler Kontostand: {account.max_balance} Perlen\n"
-            f"Preisliste: {json.dumps(prices, ensure_ascii=False)}\n"
-        )
+        context_block = _build_context_block(account, sender_name, is_admin, lang, balance, prices)
     except Exception as exc:
         logger.warning("Could not fetch live context from HA: %s", exc)
-        context_block = (
-            f"[Kontext]\nKind (Konto): {account.name} | Schreibt gerade: {sender_name}"
-            f"{' (Admin)' if is_admin else ''}\n"
-            f"(Kontostand und Preisliste konnten nicht geladen werden.)\n"
-        )
+        context_block = _build_context_block(account, sender_name, is_admin, lang)
 
     # raw_user_text is what gets stored in memory (no snapshot).
     # full_user_content is what Claude sees this turn (snapshot prepended).
     raw_user_text = f"{sender_name}: {text}"
     if attachment_path:
         # TODO: load image bytes and add as image content block once envelope verified
-        raw_user_text += f"\n[Anhang: {attachment_path} – Bildverarbeitung noch nicht aktiv]"
+        raw_user_text += "\n" + i18n.t("attachment_placeholder", lang).format(path=attachment_path)
     full_user_content = f"{context_block}\n{raw_user_text}"
 
     messages: list[dict[str, Any]] = list(hist)
@@ -142,7 +107,7 @@ async def handle(
         response = await client.messages.create(
             model=settings.model,
             max_tokens=settings.max_tokens,
-            system=SYSTEM_PROMPT,
+            system=i18n.system_prompt(lang),
             tools=TOOLS,
             messages=messages,
         )
@@ -153,7 +118,7 @@ async def handle(
                     reply_text = block.text.strip()
                     break
             if reply_text is None:
-                reply_text = "(Keine Antwort)"
+                reply_text = i18n.t("no_response", lang)
             break
 
         # --- Execute all tool calls in this response ---
@@ -175,7 +140,7 @@ async def handle(
 
     else:
         logger.warning("Reached max tool rounds (%d) without final text", MAX_TOOL_ROUNDS)
-        reply_text = "Ich bin gerade etwas durcheinander — bitte nochmal versuchen."
+        reply_text = i18n.t("max_rounds_fallback", lang)
 
     # --- Send reply via Signal ---
     # Only persist the exchange to memory when the send succeeded, so a failed
