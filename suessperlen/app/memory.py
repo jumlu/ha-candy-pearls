@@ -46,6 +46,11 @@ def _init_db(conn: sqlite3.Connection) -> None:
             data      TEXT NOT NULL,
             ts        TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS refills (
+            group_id    TEXT PRIMARY KEY,
+            last_date   TEXT NOT NULL
+        );
     """)
     conn.commit()
 
@@ -141,4 +146,26 @@ def get_open_proposal(group_id: str) -> dict[str, Any] | None:
 def clear_open_proposal(group_id: str) -> None:
     conn = get_conn()
     conn.execute("DELETE FROM proposals WHERE group_id = ?", (group_id,))
+    conn.commit()
+
+
+def get_last_refill_date(group_id: str) -> str | None:
+    """Last local date (YYYY-MM-DD) this account's daily refill ran, or None."""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT last_date FROM refills WHERE group_id = ?",
+        (group_id,),
+    ).fetchone()
+    return row["last_date"] if row else None
+
+
+def set_last_refill_date(group_id: str, date_str: str) -> None:
+    conn = get_conn()
+    conn.execute(
+        """
+        INSERT INTO refills (group_id, last_date) VALUES (?, ?)
+        ON CONFLICT(group_id) DO UPDATE SET last_date=excluded.last_date
+        """,
+        (group_id, date_str),
+    )
     conn.commit()

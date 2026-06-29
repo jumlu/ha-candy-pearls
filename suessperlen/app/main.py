@@ -19,6 +19,7 @@ from .config import AccountConfig, Settings, load_settings
 from .ha_client import HAClient
 from .harness import handle
 from .signal_client import SignalClient
+from . import refill
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -78,6 +79,8 @@ async def lifespan(app: FastAPI):
             _settings.signal_api_url,
         )
         asyncio.create_task(_wait_for_signal(logger))
+
+    asyncio.create_task(refill.loop(_settings, _ha))
 
     yield
 

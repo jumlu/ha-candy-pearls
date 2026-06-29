@@ -12,6 +12,11 @@ startup: application
 boot: auto
 map: []
 
+# NOTE: all values below are placeholders/empty on purpose. This file ships
+# in the public GitHub repo — real Signal numbers, group IDs and account
+# data belong ONLY in the add-on's Configuration tab in HA (stored in
+# /data/options.json on the host, never committed to git). See README
+# "Adding children" for how to fill these in after installing.
 options:
   anthropic_api_key: ""
   ha_token: ""
@@ -21,16 +26,11 @@ options:
   memory_turns: 10
   memory_minutes: 15
   signal_api_url: "http://127.0.0.1:8090"
-  signal_number: "+4915678436884"
+  signal_number: ""
   log_level: "info"
   prices_entity: "input_text.perlen_preise"
-  whitelist_uuids:
-    - "84ed44a2-8af9-4225-9a81-0854b4d57eed"
-  accounts:
-    - name: "Henry"
-      recv_group_id: "DkTeNR9XAMFOyg3TfJ3cXJLQllYW3O5VHiWh1kyixMw="
-      send_group_id: "group.RGtUZU5SOVhBTUZPeWczVGZKM2NYSkxRbGxZVzNPNVZIaVdoMWt5aXhNdz0="
-      balance_entity: "input_number.perlen_henry"
+  whitelist_uuids: []
+  accounts: []
 
 schema:
   anthropic_api_key: password
@@ -51,6 +51,8 @@ schema:
       recv_group_id: str
       send_group_id: str
       balance_entity: str
+      daily_refill: int
+      max_balance: int
 
 ports:
   8099/tcp: 8099

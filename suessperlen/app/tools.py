@@ -38,7 +38,7 @@ TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "account": {
                     "type": "string",
-                    "description": "Name des Kontos (z.B. 'Henry')",
+                    "description": "Name des Kontos, wie in accounts konfiguriert",
                 }
             },
             "required": ["account"],
@@ -63,7 +63,10 @@ TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "produkt": {"type": "string", "description": "Produktname (normalisiert, kleingeschrieben)"},
-                "perlen": {"type": "integer", "description": "Vorgeschlagene Perlen (1–5)"},
+                "perlen": {
+                    "type": "integer",
+                    "description": "Vorgeschlagene Perlen, min 1, max = Kontolimit (siehe Kontext-Block)",
+                },
                 "quelle": {
                     "type": "string",
                     "enum": ["preisliste", "zucker_berechnet", "variante"],
@@ -92,7 +95,7 @@ TOOLS: list[dict[str, Any]] = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "account": {"type": "string", "description": "Kontoname (z.B. 'Henry')"},
+                "account": {"type": "string", "description": "Kontoname, wie in accounts konfiguriert"},
                 "produkt": {"type": "string", "description": "Produktname"},
                 "perlen": {"type": "integer", "description": "Abzubuchende Perlen"},
                 "speichern": {
@@ -176,7 +179,7 @@ async def run_tool(name: str, tool_input: dict[str, Any], ctx: ToolContext) -> d
 
 def _resolve_account(name: str, ctx: ToolContext) -> AccountConfig | None:
     """Find account by name (case-insensitive). Falls back to ctx.account."""
-    # TODO: extend when Lia/Tina are added — nothing is hardcoded to Henry here
+    # TODO: extend when more children are added — nothing here is hardcoded to a specific child
     if name.lower() == ctx.account.name.lower():
         return ctx.account
     # Search all accounts in settings
@@ -200,9 +203,10 @@ async def _list_prices(ctx: ToolContext) -> dict:
 
 
 async def _propose(inp: dict, ctx: ToolContext) -> dict:
+    # A single item shouldn't cost more pearls than the account can ever hold.
     proposal = {
         "produkt": inp["produkt"].lower().strip(),
-        "perlen": max(1, min(5, int(inp["perlen"]))),
+        "perlen": max(1, min(ctx.account.max_balance, int(inp["perlen"]))),
         "quelle": inp["quelle"],
         "zucker_g": inp.get("zucker_g"),
         "konfidenz": inp["konfidenz"],

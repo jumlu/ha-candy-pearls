@@ -30,13 +30,15 @@ Since Home Assistant 2026.2 the UI calls add-ons **"Apps"** (menu: Settings → 
 ## Prerequisites (already in place)
 
 - **signal-cli-rest-api** add-on (`bbernhard/signal-cli-rest-api`) — **hard dependency**, see note below
-- **signal_websocket** HACS integration → `sensor.signal_4915678436884`
-- HA helpers:
-  - `input_number.perlen_henry` (0–5, Henry's balance)
-  - `input_text.perlen_preise` (JSON string, price list)
-- The existing **"Süßperlen: täglich auffüllen"** automation — leave it as-is
+- **signal_websocket** HACS integration → exposes a `sensor.signal_<your number>` entity
+- One `input_number` helper per child (0 up to that child's `max_balance`) — see "Adding children" below
+- `input_text.perlen_preise` (JSON string, shared price list across all children)
 
 **Deactivate / delete the old large Gemini automation** — this add-on replaces it.
+**Also delete any standalone "daily top-up" automation** — the add-on now handles
+the daily refill itself, per child, driven by the `daily_refill` / `max_balance`
+config fields (see below). No separate `input_datetime` reset-guard helper is
+needed any more; restart-safety is tracked internally.
 
 ### Signal dependency
 
@@ -67,10 +69,42 @@ doesn't support that. Instead, this add-on handles it at the network level:
 3. Open the app's **Configuration** tab and fill in:
    - `anthropic_api_key` — your Anthropic API key
    - `ha_token` — a Long-Lived Access Token (HA Profile → Security → Long-lived access tokens)
+   - `signal_number` — your sending Signal number
+   - `whitelist_uuids` — UUID(s) allowed to set/delete prices (find a sender's UUID in
+     `sensor.signal_<number>` → `attributes.full_envelope.sourceUuid` after they send one message)
+   - `accounts` — one entry per child, see **Adding children** below
    - Optionally change `model` (default: `claude-haiku-4-5-20251001`)
 4. **Start** the app.
 5. Add the HA automation and REST command below.
-6. Test: write "ein maoam" in the "Süßperlen Henry" Signal group.
+6. Test: write "ein maoam" in a configured child's Signal group.
+
+### Adding children
+
+All child-specific data — Signal group IDs, names, daily allowance, balance
+cap — lives **only** in the app's Configuration tab (Supervisor stores it in
+`/data/options.json` on your HA host). None of it is in this git repo; the
+shipped `config.yaml` defaults to an empty `accounts: []` for exactly that
+reason. Add one entry per child:
+
+```yaml
+accounts:
+  - name: "<child's first name>"                          # display name, used in prompts/logs
+    recv_group_id: "<envelope groupId from sensor.signal_...>"
+    send_group_id: "group.<base64 id accepted by /v2/send>"
+    balance_entity: "input_number.<your_chosen_id>"        # create this helper first (Settings → Devices & services → Helpers)
+    daily_refill: 3                                        # pearls added once per day
+    max_balance: 5                                          # balance never exceeds this
+```
+
+To find `recv_group_id`: send any message in the child's Signal group and read
+`sensor.signal_<number>` → `attributes.full_envelope.dataMessage.groupInfo.groupId`.
+To find the matching `send_group_id` (used for `/v2/send`), check the
+signal-cli-rest-api `/v1/receive/<number>` or `/v1/groups/<number>` response —
+it's the same group, formatted as `group.<id>`.
+
+When you create the `input_number` helper, set its slider `min: 0` and
+`max:` at least `max_balance` — the add-on enforces the actual cap in code, the
+helper's own max is just for a sane UI display.
 
 ### Why `host_network: true`?
 
@@ -109,7 +143,7 @@ mode: queued
 max: 15
 triggers:
   - trigger: state
-    entity_id: sensor.signal_4915678436884
+    entity_id: sensor.signal_<your_number>   # the signal_websocket sensor for your sending number
 conditions:
   - condition: template
     value_template: >
@@ -139,23 +173,50 @@ The existing `rest_command.signal_perlen_send` / notify setup is no longer neede
 | `memory_turns` | `10` | Max conversation turns to remember |
 | `memory_minutes` | `15` | Max age of turns to include |
 | `signal_api_url` | `http://127.0.0.1:8090` | signal-cli-rest-api base URL |
-| `signal_number` | `+4915678436884` | Sending Signal number |
+| `signal_number` | *(empty — required)* | Sending Signal number |
 | `prices_entity` | `input_text.perlen_preise` | HA entity holding JSON price list |
-| `whitelist_uuids` | `[Julian's UUID]` | UUIDs allowed to set/delete prices |
-| `accounts` | Henry | List of kid accounts (name, group IDs, balance entity) |
+| `whitelist_uuids` | `[]` | UUIDs allowed to set/delete prices |
+| `accounts` | `[]` | List of children — see **Adding children** above |
 
-**Adding Lia or Tina:** just add an entry to the `accounts` list in the app config — no code changes needed. Each account maps a Signal group to its own HA balance entity.
+Per-account fields inside `accounts`:
+
+| Field | Description |
+|-------|-------------|
+| `name` | Display name used in prompts/logs |
+| `recv_group_id` | Envelope `groupId` — identifies inbound messages from this child's group |
+| `send_group_id` | `group.<id>` form used by `/v2/send` for replies |
+| `balance_entity` | HA `input_number` entity holding this child's balance |
+| `daily_refill` | Pearls added once per local day |
+| `max_balance` | Balance never exceeds this (also caps single-item price estimates) |
+
+**Adding another child:** just add an entry to the `accounts` list in the app
+config — no code changes needed. All personal data (group IDs, names) stays
+in your local HA config, never in this repo.
 
 ---
 
 ## Architecture notes
 
-- **Pricing rule:** 1 pearl = 5 g sugar. Unknown products → `ceil(sugar_g / 5)`, clamped 1–5.
+- **Pricing rule:** 1 pearl = 5 g sugar. Unknown products → `ceil(sugar_g / 5)`, clamped between 1 and that child's `max_balance`.
 - **Proposal flow:** AI always proposes first (`propose` tool) → waits for confirmation → then `book`.
 - **Atomic booking:** read balance → check coverage → set balance. If not covered, returns `insufficient` — no partial debit.
 - **Per-group serial lock:** rapid messages from the same group are queued, preventing race conditions on the balance.
 - **Memory window:** last N turns *and* last M minutes — whichever is more restrictive. Prevents stale context from hours ago leaking in.
 - **Open proposal timeout:** proposals expire after 5 minutes if not confirmed (TODO: make configurable).
+- **Daily refill:** a background task (`app/refill.py`) checks every 10 minutes whether each child's local calendar day has changed; if so it tops up `daily_refill` pearls, capped at `max_balance`, and records the date in the add-on's own SQLite store. Restart-safe by design — no separate HA helper needed.
+
+---
+
+## Privacy / what's in this repo vs. your HA instance
+
+This repository contains **no phone numbers, Signal group IDs, or child
+names** — `suessperlen/config.yaml` ships with `accounts: []`,
+`whitelist_uuids: []`, and an empty `signal_number`. All of that is entered
+once through the app's Configuration tab after install, and lives only in
+`/data/options.json` on your Home Assistant host (not in git, not on GitHub).
+If you fork this repo, double-check before pushing that you never hardcode
+real values back into `config.yaml` — they belong in the Supervisor config
+only.
 
 ---
 
@@ -163,4 +224,3 @@ The existing `rest_command.signal_perlen_send` / notify setup is no longer neede
 
 - **Photo pricing:** `attachment_path` is forwarded to the handler but Vision is not yet wired up. The Signal envelope structure for image attachments needs to be verified against a real photo first.
 - **Proposal timeout** as a config option (currently hardcoded to 5 minutes in `memory.py`).
-- **Lia / Tina:** purely a config change — no code needed.

@@ -22,6 +22,8 @@ class AccountConfig:
     recv_group_id: str
     send_group_id: str
     balance_entity: str
+    daily_refill: int
+    max_balance: int
 
 
 @dataclass
@@ -72,6 +74,8 @@ def load_settings() -> Settings:
             recv_group_id=a["recv_group_id"],
             send_group_id=a["send_group_id"],
             balance_entity=a["balance_entity"],
+            daily_refill=int(a["daily_refill"]),
+            max_balance=int(a["max_balance"]),
         )
         for a in opts.get("accounts", [])
     ]

@@ -33,13 +33,14 @@ Jede Perle entspricht 5 g Zucker. Du hilfst dabei, Süßigkeiten-Käufe fair abz
 
 **Preisfindung:**
 1. Schau zuerst in der Preisliste nach (Tool: list_prices). Tippfehler und Varianten matchen.
-2. Falls nicht gefunden: schätze den Zuckergehalt in Gramm → Perlen = ceil(Zucker_g / 5), min 1, max 5.
+2. Falls nicht gefunden: schätze den Zuckergehalt in Gramm → Perlen = ceil(Zucker_g / 5),
+   min 1, max = Kontolimit (siehe Kontext-Block, Feld "Maximaler Kontostand").
 3. Schlage immer erst vor und warte auf „ja" oder „nein" des Kindes, BEVOR du buchst.
 
 **Buchungsregeln:**
 - NIEMALS ungefragt buchen — immer erst Vorschlag, dann auf Bestätigung warten.
 - Nach „ja" (oder klarer Bestätigung): Tool book aufrufen.
-- KontostÃ¤nde NIE selbst ausrechnen — immer get_balance aufrufen.
+- Kontostände NIE selbst ausrechnen — immer get_balance aufrufen.
 - Wenn nicht genug Perlen: freundlich erklären und nicht buchen.
 
 **Korrekturen im Gespräch:**
@@ -90,6 +91,7 @@ async def handle(
             f"Konto: {account.name} | Absender: {sender_name}"
             f"{' (Admin)' if is_admin else ''}\n"
             f"Aktueller Kontostand: {balance:.0f} Perlen\n"
+            f"Maximaler Kontostand: {account.max_balance} Perlen\n"
             f"Preisliste: {json.dumps(prices, ensure_ascii=False)}\n"
         )
     except Exception as exc:
