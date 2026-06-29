@@ -2,22 +2,24 @@
 
 > AI-powered candy reward system for kids over Signal — the model handles conversation and pricing, Home Assistant stays the bank. Configurable LLM (Claude by default).
 
-Kids earn and spend "pearls" (Perlen) as a proxy currency for sweets. They message a Signal group, the AI figures out the price (or asks), and Home Assistant atomically debits the balance. No pearl ever leaves without HA saying so.
+Each child has a pearl balance as a proxy currency for sweets. **The child does not message Signal directly** — each child has a dedicated Signal group that their parents, grandparents, or other relatives write in on the child's behalf, reporting what the child wants or already received. The AI figures out the price (or asks), and Home Assistant atomically debits the right child's balance. No pearl ever leaves without HA saying so.
 
 ---
 
 ## How it works
 
 ```
-Signal group → signal-cli-rest-api → signal_websocket → HA sensor
+Signal group (per child) → signal-cli-rest-api → signal_websocket → HA sensor
     → HA automation (thin forwarder) → POST /inbound (this add-on)
         → Claude (tool-use loop) → HA REST API (read/write balance & prices)
         → Signal /v2/send (reply to group)
 ```
 
-The AI **proposes** a price, waits for a "ja" from the kid, then **books** via Home Assistant. HA is the only thing that touches the balance — Claude just calls tools.
+Each Signal group belongs to exactly one child, but any relative in that group can message — the AI always knows whose balance to use from the group itself, regardless of who is typing. It tells the two apart in its context: the **account** (which child) vs. the **sender** (which relative is currently writing).
 
-**Conversation memory** (SQLite under `/data/`) lets the AI understand corrections across turns: "nee, zwei Maoam" after a first proposal works correctly.
+The AI **proposes** a price, waits for a "ja" from whoever is messaging, then **books** via Home Assistant. HA is the only thing that touches the balance — Claude just calls tools.
+
+**Conversation memory** (SQLite under `/data/`) lets the AI understand corrections across turns: "nee, zwei Maoam" after a first proposal works correctly, even if a different relative sent the correction than the one who sent the original message.
 
 ---
 
@@ -61,9 +63,11 @@ The HA Supervisor has no mechanism to declare a hard dependency between local ad
    - Optionally change `model` (default: `claude-haiku-4-5-20251001`)
 4. **Start** the app.
 5. Add the HA REST command and automation below.
-6. Test: send a candy name in one of the configured Signal groups.
+6. Test: as a parent or other relative, send a candy name in one of the configured Signal groups.
 
 ### Adding children
+
+Each child needs their own Signal group, containing whichever relatives (parents, grandparents, etc.) should be able to message on that child's behalf — there's no separate per-relative configuration; anyone in the group can write, and the AI always attributes the booking to the child who owns that group.
 
 All child-specific data — Signal group IDs, names, daily allowance, balance cap — lives **only** in the app's Configuration tab (Supervisor stores it in `/data/options.json` on your HA host). None of it is in this git repo. Add one entry per child:
 
@@ -77,7 +81,7 @@ accounts:
     max_balance: 5         # balance never exceeds this
 ```
 
-**Finding `recv_group_id`:** send any message in the child's Signal group, then read  
+**Finding `recv_group_id`:** have any relative send a message in the child's Signal group, then read  
 `sensor.signal_<number>` → `attributes.full_envelope.dataMessage.groupInfo.groupId`.
 
 **Finding `send_group_id`:** call the signal-cli-rest-api endpoint  
@@ -178,6 +182,7 @@ Per-account fields inside `accounts`:
 - **Memory window:** last N turns *and* last M minutes — the more restrictive limit applies. Prevents stale context from hours ago appearing in the conversation.
 - **Proposal timeout:** open proposals expire after 5 minutes if not confirmed.
 - **Daily refill:** background task checks every 10 minutes whether the local calendar date changed; tops up `daily_refill` pearls capped at `max_balance`. Restart-safe — last-refill date is persisted in the add-on's own SQLite store.
+- **Account vs. sender:** the AI distinguishes which child's balance it's touching (the group's account) from who is actually typing (the sender's name, passed through from the Signal message). Any relative in a child's group can message; the account is always determined by the group, never by who sent the message.
 - **Security:** admin actions (set/delete prices) are authorised against the HA-verified Signal sender UUID, never against a Claude-supplied value.
 
 ---

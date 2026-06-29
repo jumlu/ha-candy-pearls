@@ -57,7 +57,7 @@ TOOLS: list[dict[str, Any]] = [
         "name": "propose",
         "description": (
             "Speichert einen Preisvorschlag für ein Produkt in der aktuellen Sitzung. "
-            "Schlägt dem Kind vor, bevor gebucht wird. KEINE Buchung."
+            "Schlägt der Bezugsperson vor, bevor gebucht wird. KEINE Buchung."
         ),
         "input_schema": {
             "type": "object",
@@ -89,7 +89,7 @@ TOOLS: list[dict[str, Any]] = [
         "name": "book",
         "description": (
             "Bucht Perlen vom Konto ab (atomar: lesen → prüfen → setzen). "
-            "Nur aufrufen, nachdem das Kind zugestimmt hat und ein offener Vorschlag vorliegt. "
+            "Nur aufrufen, nachdem die Bezugsperson zugestimmt hat und ein offener Vorschlag vorliegt. "
             "Bei speichern=true wird der Preis in die Preisliste übernommen."
         ),
         "input_schema": {
@@ -179,7 +179,8 @@ def _require_own_account(name: str, ctx: ToolContext) -> AccountConfig | None:
     """Return ctx.account if name matches, else None.
 
     Booking and balance reads are restricted to the account that owns the
-    current group — a child cannot name another child's account to debit it.
+    current group — whoever is messaging in one child's group (a parent,
+    grandparent, etc.) cannot name another child's account to debit it.
     """
     if name.lower() == ctx.account.name.lower():
         return ctx.account
