@@ -38,7 +38,7 @@ Jede Perle entspricht 5 g Zucker. Du hilfst dabei, Süßigkeiten-Käufe fair abz
 3. Schlage immer erst vor und warte auf „ja" oder „nein" des Kindes, BEVOR du buchst.
 
 **Buchungsregeln:**
-- NIEMALS ungefragt buchen — immer erst Vorschlag, dann auf Bestätigung warten.
+- NIEMALS ungefragt buchen — immer erst Vorschlag (propose), dann auf Bestätigung warten.
 - Nach „ja" (oder klarer Bestätigung): Tool book aufrufen.
 - Kontostände NIE selbst ausrechnen — immer get_balance aufrufen.
 - Wenn nicht genug Perlen: freundlich erklären und nicht buchen.
@@ -78,11 +78,13 @@ async def handle(
     is_admin = sender_uuid in settings.whitelist_uuids
 
     # --- Load conversation history ---
+    # History contains only the raw message texts (no context snapshots), so
+    # replayed turns never show stale balance/price figures to Claude.
     hist = memory.history(group_id, settings.memory_turns, settings.memory_minutes)
 
-    # --- Build context block for the current turn ---
-    # We load live values here so Claude always has a fresh snapshot in its context,
-    # even though Tools remain the authoritative source for any write operation.
+    # --- Build context block for the current turn only ---
+    # This snapshot is injected into the live Claude call but NOT stored in
+    # memory, preventing stale balance/price data from appearing in future turns.
     try:
         balance = await ha.get_balance(account.balance_entity)
         prices = await ha.get_prices(settings.prices_entity)
@@ -102,16 +104,16 @@ async def handle(
             f"(Kontostand und Preisliste konnten nicht geladen werden.)\n"
         )
 
-    # --- Build user message ---
-    # TODO: when attachment_path is set and Signal envelope structure for images
-    #       is verified, add a vision content block here.
-    user_content = f"{context_block}\n{sender_name}: {text}"
+    # raw_user_text is what gets stored in memory (no snapshot).
+    # full_user_content is what Claude sees this turn (snapshot prepended).
+    raw_user_text = f"{sender_name}: {text}"
     if attachment_path:
         # TODO: load image bytes and add as image content block once envelope verified
-        user_content += f"\n[Anhang: {attachment_path} – Bildverarbeitung noch nicht aktiv]"
+        raw_user_text += f"\n[Anhang: {attachment_path} – Bildverarbeitung noch nicht aktiv]"
+    full_user_content = f"{context_block}\n{raw_user_text}"
 
     messages: list[dict[str, Any]] = list(hist)
-    messages.append({"role": "user", "content": user_content})
+    messages.append({"role": "user", "content": full_user_content})
 
     # --- Claude tool-use loop ---
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
@@ -136,7 +138,6 @@ async def handle(
         )
 
         if response.stop_reason != "tool_use":
-            # Extract final text
             for block in response.content:
                 if block.type == "text":
                     reply_text = block.text.strip()
@@ -159,7 +160,6 @@ async def handle(
                 "content": json.dumps(result, ensure_ascii=False),
             })
 
-        # Append assistant response + tool results to message list
         messages.append({"role": "assistant", "content": response.content})
         messages.append({"role": "user", "content": tool_results})
 
@@ -168,13 +168,15 @@ async def handle(
         reply_text = "Ich bin gerade etwas durcheinander — bitte nochmal versuchen."
 
     # --- Send reply via Signal ---
+    # Only persist the exchange to memory when the send succeeded, so a failed
+    # delivery never poisons the conversation history with an unseen reply.
     try:
         await signal.send(account.send_group_id, reply_text)
     except Exception as exc:
         logger.error("Failed to send Signal reply: %s", exc)
-        # Best-effort fallback — can't send error message if Signal itself is broken
+        return  # do not store — child never saw this exchange
 
-    # --- Persist this exchange to memory ---
-    memory.append(group_id, "user", user_content)
-    memory.append(group_id, "assistant", reply_text)
+    # --- Persist this exchange to memory (raw text only, no context snapshot) ---
+    await memory.append(group_id, "user", raw_user_text)
+    await memory.append(group_id, "assistant", reply_text)
     logger.info("Exchange stored for group %s", group_id)

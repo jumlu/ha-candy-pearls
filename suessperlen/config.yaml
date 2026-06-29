@@ -28,6 +28,7 @@ options:
   signal_api_url: "http://127.0.0.1:8090"
   signal_number: ""
   log_level: "info"
+  timezone: "UTC"
   prices_entity: "input_text.perlen_preise"
   whitelist_uuids: []
   accounts: []
@@ -43,6 +44,7 @@ schema:
   signal_api_url: str
   signal_number: str
   log_level: list(debug|info|warning|error)
+  timezone: str
   prices_entity: str
   whitelist_uuids:
     - str

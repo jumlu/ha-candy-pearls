@@ -1,14 +1,16 @@
 """
 Persistent conversation memory backed by SQLite at /data/memory.db.
 
-Two tables:
-  - messages: per-group conversation history (role/content/timestamp)
+Three tables:
+  - messages:  per-group conversation history (role/content/timestamp)
   - proposals: one open proposal per group (cleared after booking or timeout)
+  - refills:   last refill date per account (restart-safety guard)
 
-Proposal timeout: if an open proposal is older than PROPOSAL_TIMEOUT_SECONDS it
-is treated as expired and cleared on read.
-TODO: add explicit expiry enforcement (e.g. 5-minute timeout on open proposals).
+Write functions are async and serialised through a module-level asyncio.Lock
+so concurrent coroutines (inbound request handlers + refill background task)
+cannot interleave their execute/commit pairs on the shared connection.
 """
+import asyncio
 import json
 import logging
 import sqlite3
@@ -22,6 +24,16 @@ _DB_PATH = Path("/data/memory.db")
 
 # TODO: make proposal timeout configurable
 PROPOSAL_TIMEOUT_SECONDS = 300  # 5 minutes
+
+_conn: sqlite3.Connection | None = None
+_lock: asyncio.Lock | None = None
+
+
+def _get_lock() -> asyncio.Lock:
+    global _lock
+    if _lock is None:
+        _lock = asyncio.Lock()
+    return _lock
 
 
 def _connect() -> sqlite3.Connection:
@@ -55,9 +67,6 @@ def _init_db(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-_conn: sqlite3.Connection | None = None
-
-
 def get_conn() -> sqlite3.Connection:
     global _conn
     if _conn is None:
@@ -70,14 +79,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def append(group_id: str, role: str, content: str) -> None:
-    conn = get_conn()
-    conn.execute(
-        "INSERT INTO messages (group_id, role, content, ts) VALUES (?, ?, ?, ?)",
-        (group_id, role, content, _now_iso()),
-    )
-    conn.commit()
-
+# ---------------------------------------------------------------------------
+# Read functions (sync — no state mutation, safe under asyncio single-thread)
+# ---------------------------------------------------------------------------
 
 def history(group_id: str, max_turns: int, max_minutes: int) -> list[dict[str, str]]:
     """Return the most recent conversation turns for a group.
@@ -114,19 +118,8 @@ def history(group_id: str, max_turns: int, max_minutes: int) -> list[dict[str, s
     return [{"role": r["role"], "content": r["content"]} for r in chosen]
 
 
-def set_open_proposal(group_id: str, proposal: dict[str, Any]) -> None:
-    conn = get_conn()
-    conn.execute(
-        """
-        INSERT INTO proposals (group_id, data, ts) VALUES (?, ?, ?)
-        ON CONFLICT(group_id) DO UPDATE SET data=excluded.data, ts=excluded.ts
-        """,
-        (group_id, json.dumps(proposal, ensure_ascii=False), _now_iso()),
-    )
-    conn.commit()
-
-
-def get_open_proposal(group_id: str) -> dict[str, Any] | None:
+def get_open_proposal_sync(group_id: str) -> dict[str, Any] | None:
+    """Sync read of the open proposal — does NOT expire it (use get_open_proposal for that)."""
     conn = get_conn()
     row = conn.execute(
         "SELECT data, ts FROM proposals WHERE group_id = ?",
@@ -134,19 +127,10 @@ def get_open_proposal(group_id: str) -> dict[str, Any] | None:
     ).fetchone()
     if row is None:
         return None
-    # Expire stale proposals
-    # TODO: surface timeout as a config option
     ts = datetime.fromisoformat(row["ts"])
     if datetime.now(timezone.utc) - ts > timedelta(seconds=PROPOSAL_TIMEOUT_SECONDS):
-        clear_open_proposal(group_id)
-        return None
+        return None  # expired — caller should clear separately
     return json.loads(row["data"])
-
-
-def clear_open_proposal(group_id: str) -> None:
-    conn = get_conn()
-    conn.execute("DELETE FROM proposals WHERE group_id = ?", (group_id,))
-    conn.commit()
 
 
 def get_last_refill_date(group_id: str) -> str | None:
@@ -159,13 +143,66 @@ def get_last_refill_date(group_id: str) -> str | None:
     return row["last_date"] if row else None
 
 
-def set_last_refill_date(group_id: str, date_str: str) -> None:
-    conn = get_conn()
-    conn.execute(
-        """
-        INSERT INTO refills (group_id, last_date) VALUES (?, ?)
-        ON CONFLICT(group_id) DO UPDATE SET last_date=excluded.last_date
-        """,
-        (group_id, date_str),
-    )
-    conn.commit()
+# ---------------------------------------------------------------------------
+# Write functions (async — serialised through _lock)
+# ---------------------------------------------------------------------------
+
+async def append(group_id: str, role: str, content: str) -> None:
+    async with _get_lock():
+        conn = get_conn()
+        conn.execute(
+            "INSERT INTO messages (group_id, role, content, ts) VALUES (?, ?, ?, ?)",
+            (group_id, role, content, _now_iso()),
+        )
+        conn.commit()
+
+
+async def set_open_proposal(group_id: str, proposal: dict[str, Any]) -> None:
+    async with _get_lock():
+        conn = get_conn()
+        conn.execute(
+            """
+            INSERT INTO proposals (group_id, data, ts) VALUES (?, ?, ?)
+            ON CONFLICT(group_id) DO UPDATE SET data=excluded.data, ts=excluded.ts
+            """,
+            (group_id, json.dumps(proposal, ensure_ascii=False), _now_iso()),
+        )
+        conn.commit()
+
+
+async def get_open_proposal(group_id: str) -> dict[str, Any] | None:
+    """Read + expire the open proposal atomically under the write lock."""
+    async with _get_lock():
+        conn = get_conn()
+        row = conn.execute(
+            "SELECT data, ts FROM proposals WHERE group_id = ?",
+            (group_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        ts = datetime.fromisoformat(row["ts"])
+        if datetime.now(timezone.utc) - ts > timedelta(seconds=PROPOSAL_TIMEOUT_SECONDS):
+            conn.execute("DELETE FROM proposals WHERE group_id = ?", (group_id,))
+            conn.commit()
+            return None
+        return json.loads(row["data"])
+
+
+async def clear_open_proposal(group_id: str) -> None:
+    async with _get_lock():
+        conn = get_conn()
+        conn.execute("DELETE FROM proposals WHERE group_id = ?", (group_id,))
+        conn.commit()
+
+
+async def set_last_refill_date(group_id: str, date_str: str) -> None:
+    async with _get_lock():
+        conn = get_conn()
+        conn.execute(
+            """
+            INSERT INTO refills (group_id, last_date) VALUES (?, ?)
+            ON CONFLICT(group_id) DO UPDATE SET last_date=excluded.last_date
+            """,
+            (group_id, date_str),
+        )
+        conn.commit()

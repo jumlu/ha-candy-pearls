@@ -12,12 +12,12 @@ Tools Claude can call:
 Each tool returns a plain dict that is JSON-serialised as tool_result content.
 """
 import logging
-import math
 from dataclasses import dataclass
 from typing import Any
 
 from .config import AccountConfig, Settings
 from .ha_client import HAClient
+from .locks import get_balance_lock
 from . import memory
 
 logger = logging.getLogger(__name__)
@@ -89,46 +89,43 @@ TOOLS: list[dict[str, Any]] = [
         "name": "book",
         "description": (
             "Bucht Perlen vom Konto ab (atomar: lesen → prüfen → setzen). "
-            "Nur aufrufen, nachdem das Kind zugestimmt hat. "
+            "Nur aufrufen, nachdem das Kind zugestimmt hat und ein offener Vorschlag vorliegt. "
             "Bei speichern=true wird der Preis in die Preisliste übernommen."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "account": {"type": "string", "description": "Kontoname, wie in accounts konfiguriert"},
-                "produkt": {"type": "string", "description": "Produktname"},
-                "perlen": {"type": "integer", "description": "Abzubuchende Perlen"},
+                "produkt": {"type": "string", "description": "Produktname (muss dem Vorschlag entsprechen)"},
+                "perlen": {"type": "integer", "description": "Abzubuchende Perlen (darf Vorschlag nicht überschreiten)"},
                 "speichern": {
                     "type": "boolean",
                     "description": "Preis in Preisliste speichern?",
                 },
             },
-            "required": ["account", "produkt", "perlen", "speichern"],
+            "required": ["produkt", "perlen", "speichern"],
         },
     },
     {
         "name": "set_price",
-        "description": "Setzt oder überschreibt einen Preis in der Preisliste. Nur für Admins.",
+        "description": "Setzt oder überschreibt einen Preis in der Preisliste. Nur für Admins (wird anhand des verifizierten Absenders geprüft).",
         "input_schema": {
             "type": "object",
             "properties": {
                 "name": {"type": "string", "description": "Produktname"},
                 "perlen": {"type": "integer", "description": "Neuer Preis in Perlen"},
-                "requester_uuid": {"type": "string", "description": "UUID des Absenders"},
             },
-            "required": ["name", "perlen", "requester_uuid"],
+            "required": ["name", "perlen"],
         },
     },
     {
         "name": "delete_price",
-        "description": "Löscht einen Eintrag aus der Preisliste. Nur für Admins.",
+        "description": "Löscht einen Eintrag aus der Preisliste. Nur für Admins (wird anhand des verifizierten Absenders geprüft).",
         "input_schema": {
             "type": "object",
             "properties": {
                 "name": {"type": "string", "description": "Produktname"},
-                "requester_uuid": {"type": "string", "description": "UUID des Absenders"},
             },
-            "required": ["name", "requester_uuid"],
+            "required": ["name"],
         },
     },
 ]
@@ -167,6 +164,7 @@ async def run_tool(name: str, tool_input: dict[str, Any], ctx: ToolContext) -> d
             case "delete_price":
                 return await _delete_price(tool_input, ctx)
             case _:
+                logger.warning("Claude called unknown tool: %r", name)
                 return {"ok": False, "reason": f"Unbekanntes Tool: {name}"}
     except Exception as exc:
         logger.exception("Tool %s failed: %s", name, exc)
@@ -177,22 +175,21 @@ async def run_tool(name: str, tool_input: dict[str, Any], ctx: ToolContext) -> d
 # Individual tool implementations
 # ---------------------------------------------------------------------------
 
-def _resolve_account(name: str, ctx: ToolContext) -> AccountConfig | None:
-    """Find account by name (case-insensitive). Falls back to ctx.account."""
-    # TODO: extend when more children are added — nothing here is hardcoded to a specific child
+def _require_own_account(name: str, ctx: ToolContext) -> AccountConfig | None:
+    """Return ctx.account if name matches, else None.
+
+    Booking and balance reads are restricted to the account that owns the
+    current group — a child cannot name another child's account to debit it.
+    """
     if name.lower() == ctx.account.name.lower():
         return ctx.account
-    # Search all accounts in settings
-    for acc in ctx.settings.accounts:
-        if acc.name.lower() == name.lower():
-            return acc
     return None
 
 
 async def _get_balance(inp: dict, ctx: ToolContext) -> dict:
-    acc = _resolve_account(inp["account"], ctx)
+    acc = _require_own_account(inp["account"], ctx)
     if acc is None:
-        return {"ok": False, "reason": f"Konto '{inp['account']}' nicht gefunden"}
+        return {"ok": False, "reason": f"Konto '{inp['account']}' nicht gefunden oder nicht zugänglich"}
     balance = await ctx.ha.get_balance(acc.balance_entity)
     return {"ok": True, "account": acc.name, "balance": balance}
 
@@ -211,45 +208,58 @@ async def _propose(inp: dict, ctx: ToolContext) -> dict:
         "zucker_g": inp.get("zucker_g"),
         "konfidenz": inp["konfidenz"],
     }
-    memory.set_open_proposal(ctx.group_id, proposal)
+    await memory.set_open_proposal(ctx.group_id, proposal)
     return {"ok": True, "proposal": proposal, "status": "vorgemerkt – warte auf Bestätigung"}
 
 
 async def _book(inp: dict, ctx: ToolContext) -> dict:
-    acc = _resolve_account(inp["account"], ctx)
-    if acc is None:
-        return {"ok": False, "reason": f"Konto '{inp['account']}' nicht gefunden"}
+    # Validate against the parked proposal — book can only be called after propose.
+    proposal = await memory.get_open_proposal(ctx.group_id)
+    if proposal is None:
+        return {"ok": False, "reason": "Kein offener Vorschlag — bitte erst propose aufrufen"}
 
     perlen = int(inp["perlen"])
+    produkt = inp["produkt"].lower().strip()
+
+    if perlen > proposal["perlen"]:
+        return {
+            "ok": False,
+            "reason": f"Buchungsmenge ({perlen}) überschreitet den Vorschlag ({proposal['perlen']})",
+        }
+    if produkt != proposal["produkt"]:
+        return {
+            "ok": False,
+            "reason": f"Produkt '{produkt}' stimmt nicht mit Vorschlag '{proposal['produkt']}' überein",
+        }
     if perlen <= 0:
         return {"ok": False, "reason": "Perlen muss positiv sein"}
 
-    # Atomic read → check → write
-    current = await ctx.ha.get_balance(acc.balance_entity)
-    if current < perlen:
-        return {
-            "ok": False,
-            "reason": "insufficient",
-            "balance": current,
-            "required": perlen,
-        }
+    acc = ctx.account  # booking is always against the current group's account
 
-    new_balance = current - perlen
-    await ctx.ha.set_balance(acc.balance_entity, new_balance)
-    logger.info(
-        "Booked %d pearls for %s (%s → %s)",
-        perlen, acc.name, current, new_balance,
-    )
+    # Atomic read → check → write, protected by per-entity lock so refill
+    # cannot interleave between our read and write.
+    async with get_balance_lock(acc.balance_entity):
+        current = await ctx.ha.get_balance(acc.balance_entity)
+        if current < perlen:
+            return {
+                "ok": False,
+                "reason": "insufficient",
+                "balance": current,
+                "required": perlen,
+            }
+        new_balance = current - perlen
+        await ctx.ha.set_balance(acc.balance_entity, new_balance)
 
-    # Optionally persist derived price
+    logger.info("Booked %d pearls for %s (%s → %s)", perlen, acc.name, current, new_balance)
+
+    # Optionally persist derived price (own RMW, acceptable race risk for price saves)
     if inp.get("speichern"):
-        produkt = inp["produkt"].lower().strip()
         prices = await ctx.ha.get_prices(ctx.settings.prices_entity)
         prices[produkt] = perlen
         await ctx.ha.set_prices(ctx.settings.prices_entity, prices)
         logger.info("Saved price %s → %d pearls", produkt, perlen)
 
-    memory.clear_open_proposal(ctx.group_id)
+    await memory.clear_open_proposal(ctx.group_id)
     return {
         "ok": True,
         "account": acc.name,
@@ -259,7 +269,8 @@ async def _book(inp: dict, ctx: ToolContext) -> dict:
 
 
 async def _set_price(inp: dict, ctx: ToolContext) -> dict:
-    if inp["requester_uuid"] not in ctx.settings.whitelist_uuids:
+    # Use the HA-verified sender UUID, never a Claude-supplied value.
+    if ctx.sender_uuid not in ctx.settings.whitelist_uuids:
         return {"ok": False, "reason": "Nicht berechtigt"}
     name = inp["name"].lower().strip()
     perlen = int(inp["perlen"])
@@ -270,7 +281,8 @@ async def _set_price(inp: dict, ctx: ToolContext) -> dict:
 
 
 async def _delete_price(inp: dict, ctx: ToolContext) -> dict:
-    if inp["requester_uuid"] not in ctx.settings.whitelist_uuids:
+    # Use the HA-verified sender UUID, never a Claude-supplied value.
+    if ctx.sender_uuid not in ctx.settings.whitelist_uuids:
         return {"ok": False, "reason": "Nicht berechtigt"}
     name = inp["name"].lower().strip()
     prices = await ctx.ha.get_prices(ctx.settings.prices_entity)

@@ -11,7 +11,7 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -43,9 +43,10 @@ _settings: Settings | None = None
 _ha: HAClient | None = None
 _signal: SignalClient | None = None
 _group_locks: dict[str, asyncio.Lock] = {}
+_refill_task: asyncio.Task | None = None
 
 
-def _get_lock(group_id: str) -> asyncio.Lock:
+def _get_group_lock(group_id: str) -> asyncio.Lock:
     if group_id not in _group_locks:
         _group_locks[group_id] = asyncio.Lock()
     return _group_locks[group_id]
@@ -53,22 +54,20 @@ def _get_lock(group_id: str) -> asyncio.Lock:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _settings, _ha, _signal
+    global _settings, _ha, _signal, _refill_task
     _settings = load_settings()
     _setup_logging(_settings.log_level)
     _ha = HAClient(_settings)
     _signal = SignalClient(_settings)
     logger = logging.getLogger(__name__)
     logger.info(
-        "Süßperlen Harness started. Model=%s, Accounts=%s",
+        "Süßperlen Harness started. Model=%s, Timezone=%s, Accounts=%s",
         _settings.model,
+        _settings.timezone,
         [a.name for a in _settings.accounts],
     )
 
-    # Soft dependency check: the Supervisor has no add-on-to-add-on
-    # dependency mechanism, so we verify the configured signal_api_url is
-    # actually reachable and log an actionable hint if not. Non-fatal —
-    # signal-cli-rest-api may simply still be starting up.
+    # Soft dependency check: verify signal_api_url is reachable.
     if await _signal.check_reachable():
         logger.info("signal-cli-rest-api reachable at %s", _settings.signal_api_url)
     else:
@@ -80,9 +79,19 @@ async def lifespan(app: FastAPI):
         )
         asyncio.create_task(_wait_for_signal(logger))
 
-    asyncio.create_task(refill.loop(_settings, _ha))
+    # Store the task handle so we can cancel it on shutdown and detect failures.
+    _refill_task = asyncio.create_task(refill.loop(_settings, _ha), name="refill-loop")
 
-    yield
+    yield  # app runs here
+
+    # --- Graceful shutdown ---
+    if _refill_task and not _refill_task.done():
+        _refill_task.cancel()
+        try:
+            await _refill_task
+        except asyncio.CancelledError:
+            pass
+    logger.info("Süßperlen Harness stopped.")
 
 
 async def _wait_for_signal(logger: logging.Logger) -> None:
@@ -115,7 +124,8 @@ class InboundMessage(BaseModel):
 @app.get("/health")
 async def health():
     signal_ok = await _signal.check_reachable() if _signal else False
-    return {"status": "ok", "signal_reachable": signal_ok}
+    refill_alive = _refill_task is not None and not _refill_task.done()
+    return {"status": "ok", "signal_reachable": signal_ok, "refill_task_alive": refill_alive}
 
 
 @app.post("/inbound")
@@ -133,11 +143,11 @@ async def inbound(msg: InboundMessage):
             break
 
     if account is None:
-        logger.debug("Unknown group_id %s — ignoring", msg.group_id)
+        logger.debug("Unknown group_id — ignoring")
         return JSONResponse(status_code=204, content=None)
 
-    # Serialize per group to prevent race conditions on the balance
-    lock = _get_lock(msg.group_id)
+    # Serialise messages per group to prevent overlapping exchanges.
+    lock = _get_group_lock(msg.group_id)
     async with lock:
         try:
             await handle(
@@ -152,13 +162,12 @@ async def inbound(msg: InboundMessage):
             )
         except Exception as exc:
             logger.exception("Unhandled error processing message: %s", exc)
-            # Try to send error notice to the group
             try:
                 await _signal.send(
                     account.send_group_id,
                     "Konnte die Nachricht gerade nicht verarbeiten — bitte nochmal versuchen.",
                 )
             except Exception:
-                pass  # Nothing more we can do
+                pass
 
     return {"status": "ok"}

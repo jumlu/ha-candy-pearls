@@ -41,6 +41,7 @@ class Settings:
     prices_entity: str
     whitelist_uuids: list[str]
     accounts: list[AccountConfig]
+    timezone: str = "UTC"
 
 
 def _load_options() -> dict[str, Any]:
@@ -63,6 +64,7 @@ def _load_options() -> dict[str, Any]:
         "prices_entity": os.environ.get("PRICES_ENTITY", "input_text.perlen_preise"),
         "whitelist_uuids": os.environ.get("WHITELIST_UUIDS", "").split(",") if os.environ.get("WHITELIST_UUIDS") else [],
         "accounts": json.loads(os.environ.get("ACCOUNTS", "[]")),
+        "timezone": os.environ.get("TIMEZONE", "UTC"),
     }
 
 
@@ -93,4 +95,5 @@ def load_settings() -> Settings:
         prices_entity=opts["prices_entity"],
         whitelist_uuids=opts.get("whitelist_uuids", []),
         accounts=accounts,
+        timezone=opts.get("timezone", "UTC"),
     )
