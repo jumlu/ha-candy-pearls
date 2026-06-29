@@ -23,7 +23,7 @@ MAX_TOOL_ROUNDS = 6
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """\
-Du bist der Süßperlen-Assistent für ein Kinder-Belohnungssystem.
+Du bist der Perlen-Assistent für ein Kinder-Belohnungssystem.
 Jede Perle entspricht 5 g Zucker. Du hilfst dabei, Süßigkeiten-Käufe fair abzubuchen.
 
 **Deine Rolle:**

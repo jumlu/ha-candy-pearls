@@ -1,5 +1,5 @@
 """
-FastAPI entry point for the Süßperlen Harness add-on.
+FastAPI entry point for the Candy Pearls add-on.
 
 Endpoints:
   GET  /health   — liveness probe
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
     _signal = SignalClient(_settings)
     logger = logging.getLogger(__name__)
     logger.info(
-        "Süßperlen Harness started. Model=%s, Timezone=%s, Accounts=%s",
+        "Candy Pearls started. Model=%s, Timezone=%s, Accounts=%s",
         _settings.model,
         _settings.timezone,
         [a.name for a in _settings.accounts],
@@ -91,7 +91,7 @@ async def lifespan(app: FastAPI):
             await _refill_task
         except asyncio.CancelledError:
             pass
-    logger.info("Süßperlen Harness stopped.")
+    logger.info("Candy Pearls stopped.")
 
 
 async def _wait_for_signal(logger: logging.Logger) -> None:
@@ -103,7 +103,7 @@ async def _wait_for_signal(logger: logging.Logger) -> None:
             return
 
 
-app = FastAPI(title="Süßperlen Harness", lifespan=lifespan)
+app = FastAPI(title="Candy Pearls", lifespan=lifespan)
 
 # ---------------------------------------------------------------------------
 # Request schema

@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 
-bashio::log.info "Starting Süßperlen Harness..."
+bashio::log.info "Starting Candy Pearls..."
 
 # Export log level for Python app (app also reads options.json directly)
 export LOG_LEVEL=$(bashio::config 'log_level')

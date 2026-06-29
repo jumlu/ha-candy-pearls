@@ -1,7 +1,7 @@
-name: Süßperlen Harness
+name: Candy Pearls
 version: "0.1.0"
-slug: suessperlen
-description: KI-Harness für das Süßigkeiten-Perlensystem (Signal + Claude, HA als Bank)
+slug: candy_pearls
+description: AI-powered candy reward system for kids over Signal — the model handles conversation and pricing, Home Assistant stays the bank.
 url: https://github.com/jumlu/ha-candy-pearls
 arch:
   - amd64
@@ -59,4 +59,4 @@ schema:
 ports:
   8099/tcp: 8099
 ports_description:
-  8099/tcp: Inbound-Webhook von HA
+  8099/tcp: Inbound webhook from HA automation

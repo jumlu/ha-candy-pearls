@@ -1,5 +1,5 @@
 """
-Tool definitions (Anthropic schema) and executor for the Süßperlen harness.
+Tool definitions (Anthropic schema) and executor for the Candy Pearls harness.
 
 Tools Claude can call:
   - get_balance       read current pearl balance for an account

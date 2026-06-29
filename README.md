@@ -1,4 +1,4 @@
-# Süßperlen Harness
+# Candy Pearls
 
 > AI-powered candy reward system for kids over Signal — the model handles conversation and pricing, Home Assistant stays the bank. Configurable LLM (Claude by default).
 
@@ -27,35 +27,20 @@ Since Home Assistant 2026.2 the UI calls add-ons **"Apps"** (menu: Settings → 
 
 ---
 
-## Prerequisites (already in place)
+## Prerequisites
 
-- **signal-cli-rest-api** add-on (`bbernhard/signal-cli-rest-api`) — **hard dependency**, see note below
-- **signal_websocket** HACS integration → exposes a `sensor.signal_<your number>` entity
-- One `input_number` helper per child (0 up to that child's `max_balance`) — see "Adding children" below
-- `input_text.perlen_preise` (JSON string, shared price list across all children)
-
-**Deactivate / delete the old large Gemini automation** — this add-on replaces it.
-**Also delete any standalone "daily top-up" automation** — the add-on now handles
-the daily refill itself, per child, driven by the `daily_refill` / `max_balance`
-config fields (see below). No separate `input_datetime` reset-guard helper is
-needed any more; restart-safety is tracked internally.
+- **signal-cli-rest-api** add-on (`bbernhard/signal-cli-rest-api`) — install from the App Store first, see dependency note below
+- **signal_websocket** HACS integration — exposes a `sensor.signal_<your_number>` entity for inbound messages
+- One `input_number` helper per child (min 0, max = that child's `max_balance`) — create via Settings → Devices & services → Helpers
+- One `input_text` helper for the shared price list (default entity: `input_text.perlen_preise`)
 
 ### Signal dependency
 
-The HA Supervisor has no mechanism for one local add-on to declare a hard
-dependency on another and trigger its auto-install — `config.yaml` simply
-doesn't support that. Instead, this add-on handles it at the network level:
+The HA Supervisor has no mechanism to declare a hard dependency between local add-ons. Instead this add-on checks at the network level:
 
-- The Signal endpoint is fully configurable via the **`signal_api_url`** option
-  (default `http://127.0.0.1:8090`, i.e. `bbernhard/signal-cli-rest-api` on the
-  same host via `host_network: true`). Point it elsewhere if you run Signal on
-  a different host/port.
-- At startup, and on every `GET /health` call, the app pings
-  `{signal_api_url}/v1/about`. If unreachable, it logs a clear warning naming
-  the missing add-on and keeps retrying every 30s in the background — it does
-  **not** crash, since Signal may simply still be starting up.
-- If you see `signal-cli-rest-api NOT reachable` in the add-on log: install
-  and start `bbernhard/signal-cli-rest-api` first, or fix `signal_api_url`.
+- The Signal endpoint is fully configurable via **`signal_api_url`** (default `http://127.0.0.1:8090`, pointing at `bbernhard/signal-cli-rest-api` via `host_network: true`). Change it if you run Signal on a different host or port.
+- At startup and on every `GET /health` call, the app pings `{signal_api_url}/v1/about`. If unreachable it logs a clear warning and retries every 30 s in the background — the app does **not** crash while Signal is starting up.
+- If you see `signal-cli-rest-api NOT reachable` in the logs: install and start `bbernhard/signal-cli-rest-api` first, or correct `signal_api_url`.
 
 ---
 
@@ -65,58 +50,52 @@ doesn't support that. Instead, this add-on handles it at the network level:
    ```
    https://github.com/jumlu/ha-candy-pearls
    ```
-2. Find **"Süßperlen Harness"** in the App list and install it.
+2. Find **"Candy Pearls"** in the App list and install it.
 3. Open the app's **Configuration** tab and fill in:
    - `anthropic_api_key` — your Anthropic API key
    - `ha_token` — a Long-Lived Access Token (HA Profile → Security → Long-lived access tokens)
-   - `signal_number` — your sending Signal number
-   - `whitelist_uuids` — UUID(s) allowed to set/delete prices (find a sender's UUID in
-     `sensor.signal_<number>` → `attributes.full_envelope.sourceUuid` after they send one message)
+   - `signal_number` — your sending Signal number (e.g. `+49123456789`)
+   - `timezone` — your local timezone (e.g. `Europe/Berlin`) for correct daily refill timing
+   - `whitelist_uuids` — UUID(s) allowed to add/change/delete prices (find a sender's UUID in `sensor.signal_<number>` → `attributes.full_envelope.sourceUuid` after they send one message)
    - `accounts` — one entry per child, see **Adding children** below
    - Optionally change `model` (default: `claude-haiku-4-5-20251001`)
 4. **Start** the app.
-5. Add the HA automation and REST command below.
-6. Test: write "ein maoam" in a configured child's Signal group.
+5. Add the HA REST command and automation below.
+6. Test: send a candy name in one of the configured Signal groups.
 
 ### Adding children
 
-All child-specific data — Signal group IDs, names, daily allowance, balance
-cap — lives **only** in the app's Configuration tab (Supervisor stores it in
-`/data/options.json` on your HA host). None of it is in this git repo; the
-shipped `config.yaml` defaults to an empty `accounts: []` for exactly that
-reason. Add one entry per child:
+All child-specific data — Signal group IDs, names, daily allowance, balance cap — lives **only** in the app's Configuration tab (Supervisor stores it in `/data/options.json` on your HA host). None of it is in this git repo. Add one entry per child:
 
 ```yaml
 accounts:
-  - name: "<child's first name>"                          # display name, used in prompts/logs
+  - name: "<child's first name>"
     recv_group_id: "<envelope groupId from sensor.signal_...>"
     send_group_id: "group.<base64 id accepted by /v2/send>"
-    balance_entity: "input_number.<your_chosen_id>"        # create this helper first (Settings → Devices & services → Helpers)
-    daily_refill: 3                                        # pearls added once per day
-    max_balance: 5                                          # balance never exceeds this
+    balance_entity: "input_number.<your_chosen_id>"
+    daily_refill: 3        # pearls added once per day
+    max_balance: 5         # balance never exceeds this
 ```
 
-To find `recv_group_id`: send any message in the child's Signal group and read
+**Finding `recv_group_id`:** send any message in the child's Signal group, then read  
 `sensor.signal_<number>` → `attributes.full_envelope.dataMessage.groupInfo.groupId`.
-To find the matching `send_group_id` (used for `/v2/send`), check the
-signal-cli-rest-api `/v1/receive/<number>` or `/v1/groups/<number>` response —
-it's the same group, formatted as `group.<id>`.
 
-When you create the `input_number` helper, set its slider `min: 0` and
-`max:` at least `max_balance` — the add-on enforces the actual cap in code, the
-helper's own max is just for a sane UI display.
+**Finding `send_group_id`:** call the signal-cli-rest-api endpoint  
+`GET {signal_api_url}/v1/groups/<number>` — it lists all groups with both IDs. The sendable form starts with `group.`.
+
+**Daily refill:** the add-on tops up `daily_refill` pearls once per local calendar day (using `timezone`), capped at `max_balance`. No separate HA automation or helper is needed for this — it is handled internally and is restart-safe.
 
 ### Why `host_network: true`?
 
-The add-on needs to reach two services on the host:
-- `127.0.0.1:8090` — the signal-cli-rest-api add-on (host loopback)
-- `http://supervisor/core` — the HA Supervisor proxy (already reachable from add-on network, but host_network keeps things simple)
+The add-on must reach two local services:
+- `127.0.0.1:8090` — signal-cli-rest-api (host loopback, only reachable with host network)
+- `http://supervisor/core` — HA REST API (reachable either way, but host network keeps config simple)
 
-Without host network the Signal URL would need to be changed to the host's LAN IP.
+If you run signal-cli-rest-api on a different machine, set `signal_api_url` to its address and you can disable host network.
 
 ---
 
-## HA-side config (add to configuration.yaml / automations)
+## HA-side config
 
 ### REST command
 
@@ -124,7 +103,7 @@ Add to `configuration.yaml`:
 
 ```yaml
 rest_command:
-  suessperlen_inbound:
+  candy_pearls_inbound:
     url: "http://127.0.0.1:8099/inbound"
     method: POST
     content_type: "application/json"
@@ -135,21 +114,21 @@ rest_command:
        "text": {{ text | to_json }}}
 ```
 
-### Thin forwarder automation
+### Forwarder automation
 
 ```yaml
-alias: "Süßperlen: Inbound → Harness"
+alias: "Candy Pearls: Inbound → Harness"
 mode: queued
 max: 15
 triggers:
   - trigger: state
-    entity_id: sensor.signal_<your_number>   # the signal_websocket sensor for your sending number
+    entity_id: sensor.signal_<your_number>
 conditions:
   - condition: template
     value_template: >
       {{ trigger.to_state.attributes.full_envelope.dataMessage.message | default('') | trim | length > 0 }}
 actions:
-  - action: rest_command.suessperlen_inbound
+  - action: rest_command.candy_pearls_inbound
     data:
       group_id: "{{ trigger.to_state.attributes.full_envelope.dataMessage.groupInfo.groupId }}"
       sender_uuid: "{{ trigger.to_state.attributes.full_envelope.sourceUuid | default('') }}"
@@ -157,11 +136,9 @@ actions:
       text: "{{ trigger.to_state.attributes.full_envelope.dataMessage.message }}"
 ```
 
-The existing `rest_command.signal_perlen_send` / notify setup is no longer needed (the add-on sends replies directly via `/v2/send`), but can stay as a manual fallback.
-
 ---
 
-## Add-on configuration reference
+## Configuration reference
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -173,54 +150,45 @@ The existing `rest_command.signal_perlen_send` / notify setup is no longer neede
 | `memory_turns` | `10` | Max conversation turns to remember |
 | `memory_minutes` | `15` | Max age of turns to include |
 | `signal_api_url` | `http://127.0.0.1:8090` | signal-cli-rest-api base URL |
-| `signal_number` | *(empty — required)* | Sending Signal number |
-| `prices_entity` | `input_text.perlen_preise` | HA entity holding JSON price list |
+| `signal_number` | *(required)* | Sending Signal number |
+| `timezone` | `UTC` | Local timezone for daily refill (e.g. `Europe/Berlin`) |
+| `prices_entity` | `input_text.perlen_preise` | HA entity holding the JSON price list |
 | `whitelist_uuids` | `[]` | UUIDs allowed to set/delete prices |
-| `accounts` | `[]` | List of children — see **Adding children** above |
+| `accounts` | `[]` | List of children — see above |
 
 Per-account fields inside `accounts`:
 
 | Field | Description |
 |-------|-------------|
-| `name` | Display name used in prompts/logs |
-| `recv_group_id` | Envelope `groupId` — identifies inbound messages from this child's group |
+| `name` | Display name used in AI prompts and logs |
+| `recv_group_id` | Envelope `groupId` — identifies inbound messages from this group |
 | `send_group_id` | `group.<id>` form used by `/v2/send` for replies |
 | `balance_entity` | HA `input_number` entity holding this child's balance |
-| `daily_refill` | Pearls added once per local day |
-| `max_balance` | Balance never exceeds this (also caps single-item price estimates) |
-
-**Adding another child:** just add an entry to the `accounts` list in the app
-config — no code changes needed. All personal data (group IDs, names) stays
-in your local HA config, never in this repo.
+| `daily_refill` | Pearls added once per local calendar day |
+| `max_balance` | Balance cap (also limits single-item price estimates) |
 
 ---
 
 ## Architecture notes
 
-- **Pricing rule:** 1 pearl = 5 g sugar. Unknown products → `ceil(sugar_g / 5)`, clamped between 1 and that child's `max_balance`.
-- **Proposal flow:** AI always proposes first (`propose` tool) → waits for confirmation → then `book`.
-- **Atomic booking:** read balance → check coverage → set balance. If not covered, returns `insufficient` — no partial debit.
-- **Per-group serial lock:** rapid messages from the same group are queued, preventing race conditions on the balance.
-- **Memory window:** last N turns *and* last M minutes — whichever is more restrictive. Prevents stale context from hours ago leaking in.
-- **Open proposal timeout:** proposals expire after 5 minutes if not confirmed (TODO: make configurable).
-- **Daily refill:** a background task (`app/refill.py`) checks every 10 minutes whether each child's local calendar day has changed; if so it tops up `daily_refill` pearls, capped at `max_balance`, and records the date in the add-on's own SQLite store. Restart-safe by design — no separate HA helper needed.
+- **Pricing rule:** 1 pearl = 5 g sugar. Unknown products → `ceil(sugar_g / 5)`, clamped between 1 and the child's `max_balance`.
+- **Proposal flow:** AI always calls `propose` first → waits for confirmation → then `book`. Booking without a prior proposal is rejected.
+- **Atomic booking:** read balance → check coverage → set balance, protected by a per-entity asyncio lock shared with the daily refill task.
+- **Per-group serial queue:** rapid messages from the same group are processed one at a time, preventing overlapping exchanges.
+- **Memory window:** last N turns *and* last M minutes — the more restrictive limit applies. Prevents stale context from hours ago appearing in the conversation.
+- **Proposal timeout:** open proposals expire after 5 minutes if not confirmed.
+- **Daily refill:** background task checks every 10 minutes whether the local calendar date changed; tops up `daily_refill` pearls capped at `max_balance`. Restart-safe — last-refill date is persisted in the add-on's own SQLite store.
+- **Security:** admin actions (set/delete prices) are authorised against the HA-verified Signal sender UUID, never against a Claude-supplied value.
 
 ---
 
-## Privacy / what's in this repo vs. your HA instance
+## Privacy
 
-This repository contains **no phone numbers, Signal group IDs, or child
-names** — `suessperlen/config.yaml` ships with `accounts: []`,
-`whitelist_uuids: []`, and an empty `signal_number`. All of that is entered
-once through the app's Configuration tab after install, and lives only in
-`/data/options.json` on your Home Assistant host (not in git, not on GitHub).
-If you fork this repo, double-check before pushing that you never hardcode
-real values back into `config.yaml` — they belong in the Supervisor config
-only.
+This repository contains **no phone numbers, Signal group IDs, child names, or UUIDs** — `candy-pearls/config.yaml` ships with `accounts: []`, `whitelist_uuids: []`, and an empty `signal_number`. All personal data is entered via the app's Configuration tab and lives only in `/data/options.json` on your HA host — never in git. If you fork this repo, do not hardcode real values into `config.yaml`.
 
 ---
 
 ## Known TODOs
 
-- **Photo pricing:** `attachment_path` is forwarded to the handler but Vision is not yet wired up. The Signal envelope structure for image attachments needs to be verified against a real photo first.
+- **Photo pricing:** `attachment_path` is passed through to the handler but vision is not yet wired up — the Signal envelope structure for image attachments needs to be verified against a real photo first.
 - **Proposal timeout** as a config option (currently hardcoded to 5 minutes in `memory.py`).
