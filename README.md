@@ -29,7 +29,7 @@ Since Home Assistant 2026.2 the UI calls add-ons **"Apps"** (menu: Settings → 
 
 ## Prerequisites (already in place)
 
-- **signal-cli-rest-api** add-on running on `http://127.0.0.1:8090`, sending number `+4915678436884`
+- **signal-cli-rest-api** add-on (`bbernhard/signal-cli-rest-api`) — **hard dependency**, see note below
 - **signal_websocket** HACS integration → `sensor.signal_4915678436884`
 - HA helpers:
   - `input_number.perlen_henry` (0–5, Henry's balance)
@@ -37,6 +37,23 @@ Since Home Assistant 2026.2 the UI calls add-ons **"Apps"** (menu: Settings → 
 - The existing **"Süßperlen: täglich auffüllen"** automation — leave it as-is
 
 **Deactivate / delete the old large Gemini automation** — this add-on replaces it.
+
+### Signal dependency
+
+The HA Supervisor has no mechanism for one local add-on to declare a hard
+dependency on another and trigger its auto-install — `config.yaml` simply
+doesn't support that. Instead, this add-on handles it at the network level:
+
+- The Signal endpoint is fully configurable via the **`signal_api_url`** option
+  (default `http://127.0.0.1:8090`, i.e. `bbernhard/signal-cli-rest-api` on the
+  same host via `host_network: true`). Point it elsewhere if you run Signal on
+  a different host/port.
+- At startup, and on every `GET /health` call, the app pings
+  `{signal_api_url}/v1/about`. If unreachable, it logs a clear warning naming
+  the missing add-on and keeps retrying every 30s in the background — it does
+  **not** crash, since Signal may simply still be starting up.
+- If you see `signal-cli-rest-api NOT reachable` in the add-on log: install
+  and start `bbernhard/signal-cli-rest-api` first, or fix `signal_api_url`.
 
 ---
 

@@ -57,12 +57,38 @@ async def lifespan(app: FastAPI):
     _setup_logging(_settings.log_level)
     _ha = HAClient(_settings)
     _signal = SignalClient(_settings)
-    logging.getLogger(__name__).info(
+    logger = logging.getLogger(__name__)
+    logger.info(
         "Süßperlen Harness started. Model=%s, Accounts=%s",
         _settings.model,
         [a.name for a in _settings.accounts],
     )
+
+    # Soft dependency check: the Supervisor has no add-on-to-add-on
+    # dependency mechanism, so we verify the configured signal_api_url is
+    # actually reachable and log an actionable hint if not. Non-fatal —
+    # signal-cli-rest-api may simply still be starting up.
+    if await _signal.check_reachable():
+        logger.info("signal-cli-rest-api reachable at %s", _settings.signal_api_url)
+    else:
+        logger.warning(
+            "signal-cli-rest-api NOT reachable at %s — install/start the "
+            "'bbernhard/signal-cli-rest-api' add-on, or update 'signal_api_url' "
+            "in this app's configuration if it runs elsewhere. Retrying in background.",
+            _settings.signal_api_url,
+        )
+        asyncio.create_task(_wait_for_signal(logger))
+
     yield
+
+
+async def _wait_for_signal(logger: logging.Logger) -> None:
+    """Poll until signal-cli-rest-api becomes reachable, then log success."""
+    while True:
+        await asyncio.sleep(30)
+        if _signal and await _signal.check_reachable():
+            logger.info("signal-cli-rest-api is now reachable at %s", _settings.signal_api_url)
+            return
 
 
 app = FastAPI(title="Süßperlen Harness", lifespan=lifespan)
@@ -85,7 +111,8 @@ class InboundMessage(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    signal_ok = await _signal.check_reachable() if _signal else False
+    return {"status": "ok", "signal_reachable": signal_ok}
 
 
 @app.post("/inbound")

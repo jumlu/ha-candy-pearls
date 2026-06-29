@@ -56,7 +56,7 @@ def _load_options() -> dict[str, Any]:
         "memory_turns": int(os.environ.get("MEMORY_TURNS", "10")),
         "memory_minutes": int(os.environ.get("MEMORY_MINUTES", "15")),
         "signal_api_url": os.environ.get("SIGNAL_API_URL", "http://127.0.0.1:8090"),
-        "signal_number": os.environ.get("SIGNAL_NUMBER", "+4915678436884"),
+        "signal_number": os.environ.get("SIGNAL_NUMBER", ""),
         "log_level": os.environ.get("LOG_LEVEL", "info"),
         "prices_entity": os.environ.get("PRICES_ENTITY", "input_text.perlen_preise"),
         "whitelist_uuids": os.environ.get("WHITELIST_UUIDS", "").split(",") if os.environ.get("WHITELIST_UUIDS") else [],
