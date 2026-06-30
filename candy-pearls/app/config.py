@@ -43,6 +43,8 @@ class Settings:
     accounts: list[AccountConfig]
     timezone: str = "UTC"
     language: str = "en"
+    sugar_per_pearl: int = 5
+    require_confirmation: bool = True
 
 
 def _load_options() -> dict[str, Any]:
@@ -67,6 +69,8 @@ def _load_options() -> dict[str, Any]:
         "accounts": json.loads(os.environ.get("ACCOUNTS", "[]")),
         "timezone": os.environ.get("TIMEZONE", "UTC"),
         "language": os.environ.get("LANGUAGE", "en"),
+        "sugar_per_pearl": int(os.environ.get("SUGAR_PER_PEARL", "5")),
+        "require_confirmation": os.environ.get("REQUIRE_CONFIRMATION", "true").lower() != "false",
     }
 
 
@@ -99,4 +103,6 @@ def load_settings() -> Settings:
         accounts=accounts,
         timezone=opts.get("timezone", "UTC"),
         language=opts.get("language", "en"),
+        sugar_per_pearl=int(opts.get("sugar_per_pearl", 5)),
+        require_confirmation=bool(opts.get("require_confirmation", True)),
     )

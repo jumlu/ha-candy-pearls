@@ -107,7 +107,7 @@ async def handle(
         response = await client.messages.create(
             model=settings.model,
             max_tokens=settings.max_tokens,
-            system=i18n.system_prompt(lang),
+            system=i18n.system_prompt(lang, settings.sugar_per_pearl, settings.require_confirmation),
             tools=TOOLS,
             messages=messages,
         )

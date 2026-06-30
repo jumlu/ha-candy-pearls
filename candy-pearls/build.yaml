@@ -1,0 +1,7 @@
+# build.yaml tells the HA Supervisor which base image to use per architecture.
+# Without this file the Supervisor does not pass BUILD_FROM as a build arg,
+# so the Dockerfile falls back to its own default — which may not exist in
+# the registry. This file is the authoritative source of the base image.
+build_from:
+  amd64: "ghcr.io/home-assistant/amd64-base-python:3.13"
+  aarch64: "ghcr.io/home-assistant/aarch64-base-python:3.13"

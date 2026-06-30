@@ -1,4 +1,5 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.12
+# BUILD_FROM is supplied by the Supervisor from build.yaml — no default here.
+ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
 RUN apk add --no-cache python3 py3-pip

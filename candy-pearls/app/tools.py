@@ -231,28 +231,34 @@ async def _propose(inp: dict, ctx: ToolContext) -> dict:
 
 
 async def _book(inp: dict, ctx: ToolContext) -> dict:
-    # Validate against the parked proposal — book can only be called after propose.
-    proposal = await memory.get_open_proposal(ctx.group_id)
-    if proposal is None:
-        return {"ok": False, "reason": "No open proposal — call propose first"}
-
     pearls = int(inp["pearls"])
     product = inp["product"].lower().strip()
 
-    if pearls > proposal["pearls"]:
-        return {
-            "ok": False,
-            "reason": f"Booking amount ({pearls}) exceeds the proposal ({proposal['pearls']})",
-        }
-    if product != proposal["product"]:
-        return {
-            "ok": False,
-            "reason": f"Product '{product}' does not match proposal '{proposal['product']}'",
-        }
     if pearls <= 0:
         return {"ok": False, "reason": "Pearls must be positive"}
 
+    if ctx.settings.require_confirmation:
+        # Validate against the parked proposal so Claude cannot book more than
+        # was proposed and confirmed by the caregiver.
+        proposal = await memory.get_open_proposal(ctx.group_id)
+        if proposal is None:
+            return {"ok": False, "reason": "No open proposal — call propose first"}
+        if pearls > proposal["pearls"]:
+            return {
+                "ok": False,
+                "reason": f"Booking amount ({pearls}) exceeds the proposal ({proposal['pearls']})",
+            }
+        if product != proposal["product"]:
+            return {
+                "ok": False,
+                "reason": f"Product '{product}' does not match proposal '{proposal['product']}'",
+            }
+
     acc = ctx.account  # booking is always against the current group's account
+
+    # When confirmation is off the propose step is skipped, so clamp here.
+    if not ctx.settings.require_confirmation:
+        pearls = min(pearls, acc.max_balance)
 
     # Atomic read → check → write, protected by per-entity lock so refill
     # cannot interleave between our read and write.

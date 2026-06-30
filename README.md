@@ -156,6 +156,8 @@ actions:
 | `signal_api_url` | `http://127.0.0.1:8090` | signal-cli-rest-api base URL |
 | `signal_number` | *(required)* | Sending Signal number |
 | `language` | `en` | Conversation language: `en` (English) or `de` (German) |
+| `sugar_per_pearl` | `5` | Grams of sugar that equal one pearl (pricing formula) |
+| `require_confirmation` | `true` | If `false` the AI books immediately without a propose/confirm step |
 | `timezone` | `UTC` | Local timezone for daily refill (e.g. `Europe/Berlin`) |
 | `prices_entity` | `input_text.perlen_preise` | HA entity holding the JSON price list |
 | `whitelist_uuids` | `[]` | UUIDs allowed to set/delete prices |

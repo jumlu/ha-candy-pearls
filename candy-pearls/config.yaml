@@ -30,6 +30,8 @@ options:
   log_level: "info"
   timezone: "UTC"
   language: "en"
+  sugar_per_pearl: 5
+  require_confirmation: true
   prices_entity: "input_text.perlen_preise"
   whitelist_uuids: []
   accounts: []
@@ -47,6 +49,8 @@ schema:
   log_level: list(debug|info|warning|error)
   timezone: str
   language: list(en|de)
+  sugar_per_pearl: int
+  require_confirmation: bool
   prices_entity: str
   whitelist_uuids:
     - str
