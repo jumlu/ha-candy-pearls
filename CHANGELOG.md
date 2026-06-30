@@ -5,6 +5,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Dockerfile now uses `python:3.13-alpine` from Docker Hub as the base image.
+  The HA Supervisor does not pass `BUILD_FROM` as a build arg for local device
+  builds (that flag is only used by the HA cloud publisher), so the previous
+  `ARG BUILD_FROM` with no default caused an empty `FROM` and a failed build.
+  `build.yaml` has been removed for the same reason — the Supervisor ignores it
+  for local builds.
+- `run.sh` rewritten as plain `#!/bin/sh`; `bashio` removed since the Python
+  app reads `/data/options.json` directly and does not need the HA shell helpers.
+
+---
+
 ## [0.1.0] — 2026-06-30
 
 Initial release of Candy Pearls as a public, generic Home Assistant add-on.
