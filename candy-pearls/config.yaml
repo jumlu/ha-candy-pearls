@@ -1,5 +1,5 @@
 name: Candy Pearls
-version: "0.1.5"
+version: "0.1.6"
 slug: candy_pearls
 description: AI-powered candy reward system for kids over Signal — the model handles conversation and pricing, Home Assistant stays the bank.
 url: https://github.com/jumlu/ha-candy-pearls
@@ -8,6 +8,7 @@ arch:
   - aarch64
 init: false
 host_network: true
+homeassistant_api: true
 startup: application
 boot: auto
 map: []
@@ -19,8 +20,6 @@ map: []
 # "Adding children" for how to fill these in after installing.
 options:
   anthropic_api_key: ""
-  ha_token: ""
-  ha_base_url: "http://supervisor/core"
   model: "claude-haiku-4-5-20251001"
   max_tokens: 1024
   memory_turns: 10
@@ -38,8 +37,6 @@ options:
 
 schema:
   anthropic_api_key: password
-  ha_token: password
-  ha_base_url: str
   model: list(claude-haiku-4-5-20251001|claude-sonnet-4-6|claude-opus-4-8|claude-fable-5)
   max_tokens: int
   memory_turns: int

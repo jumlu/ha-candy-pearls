@@ -55,7 +55,6 @@ The HA Supervisor has no mechanism to declare a hard dependency between local ad
 2. Find **"Candy Pearls"** in the App list and install it.
 3. Open the app's **Configuration** tab and fill in:
    - `anthropic_api_key` — your Anthropic API key
-   - `ha_token` — a Long-Lived Access Token (HA Profile → Security → Long-lived access tokens)
    - `signal_number` — your sending Signal number (e.g. `+49123456789`)
    - `timezone` — your local timezone (e.g. `Europe/Berlin`) for correct daily refill timing
    - `whitelist_uuids` — UUID(s) allowed to add/change/delete prices (find a sender's UUID in `sensor.signal_<number>` → `attributes.full_envelope.sourceUuid` after they send one message)
@@ -91,11 +90,13 @@ accounts:
 
 ### Why `host_network: true`?
 
-The add-on must reach two local services:
-- `127.0.0.1:8090` — signal-cli-rest-api (host loopback, only reachable with host network)
-- `http://supervisor/core` — HA REST API (reachable either way, but host network keeps config simple)
+The app must reach signal-cli-rest-api at `127.0.0.1:8090` (host loopback), which
+is only accessible when sharing the host's network namespace. The HA REST API is
+accessed via the Supervisor's internal proxy (`http://supervisor/core`), which
+doesn't require host networking — but signal-cli-rest-api does.
 
-If you run signal-cli-rest-api on a different machine, set `signal_api_url` to its address and you can disable host network.
+If you run signal-cli-rest-api on a different machine, set `signal_api_url` to its
+address and you can disable `host_network: true`.
 
 ---
 
@@ -147,9 +148,7 @@ actions:
 | Option | Default | Description |
 |--------|---------|-------------|
 | `anthropic_api_key` | *(required)* | Anthropic API key |
-| `ha_token` | *(required)* | HA Long-Lived Access Token |
-| `ha_base_url` | `http://supervisor/core` | HA REST base URL |
-| `model` | `claude-haiku-4-5-20251001` | Any Anthropic model string |
+| `model` | `claude-haiku-4-5-20251001` | Claude model — dropdown in the Configuration tab |
 | `max_tokens` | `1024` | Max tokens per Claude response |
 | `memory_turns` | `10` | Max conversation turns to remember |
 | `memory_minutes` | `15` | Max age of turns to include |

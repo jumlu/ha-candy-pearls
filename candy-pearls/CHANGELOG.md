@@ -1,3 +1,14 @@
+## 0.1.6 — 2026-06-30
+
+### Changed
+- The Home Assistant access token is now generated automatically by the
+  Supervisor (`homeassistant_api: true` added to config.yaml). The app reads
+  the injected `SUPERVISOR_TOKEN` environment variable instead of asking the
+  user to create and paste a Long-Lived Access Token. `ha_token` and
+  `ha_base_url` have been removed from the Configuration tab entirely.
+
+---
+
 ## 0.1.5 — 2026-06-30
 
 ### Added

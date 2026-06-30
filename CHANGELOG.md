@@ -8,6 +8,23 @@ This file is the repository-level changelog and mirrors it with additional detai
 
 ---
 
+## [0.1.6] — 2026-06-30
+
+### Changed
+- Added `homeassistant_api: true` to `config.yaml`. The Supervisor now injects
+  a `SUPERVISOR_TOKEN` env var that the app uses as its HA bearer token — no
+  user-created Long-Lived Access Token required.
+- Removed `ha_token` (password field) and `ha_base_url` from `options`,
+  `schema`, and both translation files. The HA base URL is always
+  `http://supervisor/core` and requires no user input.
+- `config.py`: `load_settings()` now reads `os.environ["SUPERVISOR_TOKEN"]`
+  (with `HA_TOKEN` env var fallback for local dev); `ha_base_url` defaults to
+  `http://supervisor/core` via `HA_BASE_URL` env var.
+- `DOCS.md` and root `README.md` updated: removed the LLAT creation step from
+  installation and the token rows from the configuration reference table.
+
+---
+
 ## [0.1.5] — 2026-06-30
 
 ### Added

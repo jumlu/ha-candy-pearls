@@ -4,11 +4,16 @@ ENV-variable fallback for local development.
 
 HA writes options.json from the user's add-on config before starting the
 container, so this is always present at runtime.
+
+ha_token and ha_base_url are NOT in options.json — ha_token comes from the
+SUPERVISOR_TOKEN env var injected by the Supervisor (requires
+homeassistant_api: true in config.yaml), and ha_base_url is always
+http://supervisor/core. Set HA_TOKEN / HA_BASE_URL env vars for local dev.
 """
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -55,8 +60,6 @@ def _load_options() -> dict[str, Any]:
     logger.warning("No %s found — falling back to environment variables", _OPTIONS_PATH)
     return {
         "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
-        "ha_token": os.environ.get("HA_TOKEN", ""),
-        "ha_base_url": os.environ.get("HA_BASE_URL", "http://supervisor/core"),
         "model": os.environ.get("MODEL", "claude-haiku-4-5-20251001"),
         "max_tokens": int(os.environ.get("MAX_TOKENS", "1024")),
         "memory_turns": int(os.environ.get("MEMORY_TURNS", "10")),
@@ -87,10 +90,16 @@ def load_settings() -> Settings:
         )
         for a in opts.get("accounts", [])
     ]
+    # SUPERVISOR_TOKEN is injected by the Supervisor when homeassistant_api: true.
+    # Fall back to HA_TOKEN env var for local development.
+    ha_token = os.environ.get("SUPERVISOR_TOKEN") or os.environ.get("HA_TOKEN", "")
+    ha_base_url = os.environ.get("HA_BASE_URL", "http://supervisor/core").rstrip("/")
+    if not ha_token:
+        logger.warning("SUPERVISOR_TOKEN not set — HA API calls will fail (is homeassistant_api: true in config.yaml?)")
     return Settings(
         anthropic_api_key=opts["anthropic_api_key"],
-        ha_token=opts["ha_token"],
-        ha_base_url=opts["ha_base_url"].rstrip("/"),
+        ha_token=ha_token,
+        ha_base_url=ha_base_url,
         model=opts["model"],
         max_tokens=int(opts["max_tokens"]),
         memory_turns=int(opts["memory_turns"]),

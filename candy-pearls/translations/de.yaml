@@ -5,18 +5,6 @@ configuration:
       Dein API-Schlüssel für Claude. Melde dich unter https://console.anthropic.com/
       an, gehe zu „API Keys" und erstelle einen neuen Schlüssel. Halte ihn geheim —
       pro API-Aufruf fallen Kosten an.
-  ha_token:
-    name: Home Assistant Langzeit-Token
-    description: >-
-      Zugriffstoken für die HA REST-API. Erstelle einen in Home Assistant: auf den
-      Benutzernamen (unten links) klicken → Tab „Sicherheit" → nach unten scrollen
-      zu „Langzeit-Zugriffstoken" → Token erstellen. Gib ihm einen beliebigen Namen
-      (z. B. „candy-pearls").
-  ha_base_url:
-    name: Home Assistant Basis-URL
-    description: >-
-      Interne URL deiner HA-Instanz. Behalte den Standardwert „http://supervisor/core"
-      beim Betrieb als Add-on — der Supervisor leitet die Anfragen automatisch weiter.
   model:
     name: Claude-Modell
     description: >-

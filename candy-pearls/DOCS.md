@@ -57,8 +57,6 @@ apps. Instead this app checks at the network level:
 
 1. Open the **Configuration** tab and fill in:
    - `anthropic_api_key` — your Anthropic API key
-   - `ha_token` — a Long-Lived Access Token (HA Profile → Security →
-     Long-lived access tokens)
    - `signal_number` — your sending Signal number (e.g. `+49123456789`)
    - `timezone` — your local timezone for correct daily refill timing
    - `whitelist_uuids` — UUID(s) allowed to add/change/delete prices (find a
@@ -156,8 +154,6 @@ actions:
 | Option | Default | Description |
 |--------|---------|-------------|
 | `anthropic_api_key` | *(required)* | Anthropic API key |
-| `ha_token` | *(required)* | HA Long-Lived Access Token |
-| `ha_base_url` | `http://supervisor/core` | HA REST base URL |
 | `model` | `claude-haiku-4-5-20251001` | Claude model used for conversation |
 | `max_tokens` | `1024` | Max tokens per Claude response |
 | `memory_turns` | `10` | Max conversation turns to remember |
