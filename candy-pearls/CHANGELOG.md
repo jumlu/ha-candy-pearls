@@ -1,3 +1,11 @@
+## 0.1.3 — 2026-06-30
+
+### Added
+- `icon.png` and `logo.png` — a candy-pearl cluster icon shown in the HA
+  add-on store list and detail page.
+
+---
+
 ## 0.1.2 — 2026-06-30
 
 ### Added

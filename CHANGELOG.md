@@ -8,6 +8,15 @@ This file is the repository-level changelog and mirrors it with additional detai
 
 ---
 
+## [0.1.3] — 2026-06-30
+
+### Added
+- `candy-pearls/icon.png` (256×256) and `candy-pearls/logo.png` (512×512) —
+  a glossy candy-pearl cluster icon/logo, shown in the HA add-on store list
+  and on the add-on detail page.
+
+---
+
 ## [0.1.2] — 2026-06-30
 
 ### Added
