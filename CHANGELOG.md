@@ -8,6 +8,19 @@ This file is the repository-level changelog and mirrors it with additional detai
 
 ---
 
+## [0.1.4] — 2026-06-30
+
+### Fixed
+- Translation files (`translations/en.yaml`, `translations/de.yaml`) had a
+  `network` section formatted as a nested object (`8099/tcp: {title, description}`)
+  instead of the required flat string (`8099/tcp: "description"`). The Supervisor
+  rejects the whole translation file when this validation fails, which silently
+  discarded all `configuration` descriptions too — confirmed via Supervisor log:
+  `Can't read translations from .../translations/en.yaml - expected str for
+  dictionary value @ data['network']['8099/tcp']`. Fixed by flattening it.
+
+---
+
 ## [0.1.3] — 2026-06-30
 
 ### Added

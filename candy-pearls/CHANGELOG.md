@@ -1,3 +1,15 @@
+## 0.1.4 — 2026-06-30
+
+### Fixed
+- `translations/en.yaml` and `translations/de.yaml`: the `network` section used
+  a nested `title`/`description` object per port, but the Supervisor schema
+  requires a flat string per port (`8099/tcp: "description"`). This caused
+  Supervisor to reject the *entire* translation file silently — so none of the
+  configuration option names/descriptions were shown, not just the network
+  part. Fixed by flattening the `network` entry.
+
+---
+
 ## 0.1.3 — 2026-06-30
 
 ### Added

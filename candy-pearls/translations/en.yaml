@@ -98,8 +98,4 @@ configuration:
       max_balance (maximum pearls the balance can reach).
 
 network:
-  8099/tcp:
-    title: Inbound Webhook Port
-    description: >-
-      Port the add-on listens on for incoming Signal messages forwarded by the HA
-      automation. Default is 8099. Change only if that port is already in use.
+  8099/tcp: Inbound webhook port for Signal messages forwarded by the HA automation. Change only if 8099 is already in use.

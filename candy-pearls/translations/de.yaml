@@ -102,9 +102,4 @@ configuration:
       (maximaler Perlensaldo).
 
 network:
-  8099/tcp:
-    title: Eingehender Webhook-Port
-    description: >-
-      Port, auf dem das Add-on eingehende Signal-Nachrichten empfängt, die von der
-      HA-Automatisierung weitergeleitet werden. Standard ist 8099. Nur ändern, wenn
-      dieser Port bereits belegt ist.
+  8099/tcp: Eingehender Webhook-Port für Signal-Nachrichten, die von der HA-Automatisierung weitergeleitet werden. Nur ändern, wenn 8099 bereits belegt ist.
