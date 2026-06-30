@@ -213,8 +213,7 @@ async def _get_balance(inp: dict, ctx: ToolContext) -> dict:
 
 
 async def _list_prices(ctx: ToolContext) -> dict:
-    prices = await ctx.ha.get_prices(ctx.settings.prices_entity)
-    return {"ok": True, "prices": prices}
+    return {"ok": True, "prices": memory.get_prices()}
 
 
 async def _propose(inp: dict, ctx: ToolContext) -> dict:
@@ -276,11 +275,8 @@ async def _book(inp: dict, ctx: ToolContext) -> dict:
 
     logger.info("Booked %d pearls for %s (%s → %s)", pearls, acc.name, current, new_balance)
 
-    # Optionally persist derived price (own RMW, acceptable race risk for price saves)
     if inp.get("save"):
-        prices = await ctx.ha.get_prices(ctx.settings.prices_entity)
-        prices[product] = pearls
-        await ctx.ha.set_prices(ctx.settings.prices_entity, prices)
+        await memory.set_price(product, pearls)
         logger.info("Saved price %s → %d pearls", product, pearls)
 
     await memory.clear_open_proposal(ctx.group_id)
@@ -298,9 +294,7 @@ async def _set_price(inp: dict, ctx: ToolContext) -> dict:
         return {"ok": False, "reason": "Not authorised"}
     name = inp["name"].lower().strip()
     pearls = int(inp["pearls"])
-    prices = await ctx.ha.get_prices(ctx.settings.prices_entity)
-    prices[name] = pearls
-    await ctx.ha.set_prices(ctx.settings.prices_entity, prices)
+    await memory.set_price(name, pearls)
     return {"ok": True, "name": name, "pearls": pearls}
 
 
@@ -309,9 +303,7 @@ async def _delete_price(inp: dict, ctx: ToolContext) -> dict:
     if ctx.sender_uuid not in ctx.settings.whitelist_uuids:
         return {"ok": False, "reason": "Not authorised"}
     name = inp["name"].lower().strip()
-    prices = await ctx.ha.get_prices(ctx.settings.prices_entity)
-    if name not in prices:
+    deleted = await memory.delete_price(name)
+    if not deleted:
         return {"ok": False, "reason": f"'{name}' not in price list"}
-    del prices[name]
-    await ctx.ha.set_prices(ctx.settings.prices_entity, prices)
     return {"ok": True, "deleted": name}

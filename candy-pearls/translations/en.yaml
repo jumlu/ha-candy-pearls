@@ -64,13 +64,6 @@ configuration:
       When enabled (recommended), Claude first proposes a booking and the caregiver
       must confirm before pearls are deducted. When disabled, Claude books
       immediately — useful for simpler setups or younger children.
-  prices_entity:
-    name: Prices Entity
-    description: >-
-      The HA input_text helper that stores the current price list as JSON. Create
-      a "Text" helper in Settings → Devices & Services → Helpers → Add Helper →
-      Text. Set the maximum length to at least 500. The entity ID will look like
-      "input_text.your_name".
   whitelist_uuids:
     name: Admin Signal UUIDs
     description: >-

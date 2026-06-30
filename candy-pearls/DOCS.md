@@ -33,8 +33,6 @@ relative sent it than the one who sent the original message.
   entity for inbound messages
 - One `input_number` helper per child (min 0, max = that child's `max_balance`)
   — create via Settings → Devices & services → Helpers
-- One `input_text` helper for the shared price list (default entity:
-  `input_text.perlen_preise`)
 
 ### Signal dependency
 
@@ -106,6 +104,27 @@ restart-safe.
 
 ---
 
+## Price management
+
+Prices are stored in the app's SQLite database (`/data/memory.db`) — no HA
+helper required. The price list is shared across all children/groups.
+
+**Viewing prices:** any group member can send `/list` to get the current
+price list formatted as a Signal message.
+
+**Adding/changing a price:** send a natural-language message to any group,
+e.g. *"Set gummy bears to 2 pearls"*. Claude will call the `set_price` tool
+if the sender is on the admin whitelist.
+
+**Removing a price:** *"Delete gummy bears from the price list"*. Claude calls
+`delete_price` — again requires admin UUID.
+
+**Auto-saving new prices:** when booking an item that was not in the price
+list, Claude can ask *"Should I save this price?"*. If the caregiver agrees,
+the price is written to the database.
+
+---
+
 ## HA-side configuration
 
 ### REST command
@@ -164,7 +183,6 @@ actions:
 | `sugar_per_pearl` | `5` | Grams of sugar that equal one pearl (pricing formula) |
 | `require_confirmation` | `true` | If `false` Claude books immediately without a propose/confirm step |
 | `timezone` | `UTC` | Local timezone for daily refill |
-| `prices_entity` | `input_text.perlen_preise` | HA entity holding the JSON price list |
 | `whitelist_uuids` | `[]` | UUIDs allowed to set/delete prices |
 | `accounts` | `[]` | List of children — see **Adding children** above |
 

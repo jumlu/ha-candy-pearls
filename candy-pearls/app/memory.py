@@ -63,6 +63,11 @@ def _init_db(conn: sqlite3.Connection) -> None:
             group_id    TEXT PRIMARY KEY,
             last_date   TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS prices (
+            name    TEXT PRIMARY KEY,
+            pearls  INTEGER NOT NULL
+        );
     """)
     conn.commit()
 
@@ -206,3 +211,36 @@ async def set_last_refill_date(group_id: str, date_str: str) -> None:
             (group_id, date_str),
         )
         conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Prices (sync read, async writes)
+# ---------------------------------------------------------------------------
+
+def get_prices() -> dict[str, int]:
+    """Return the full price list sorted alphabetically by product name."""
+    conn = get_conn()
+    rows = conn.execute("SELECT name, pearls FROM prices ORDER BY name ASC").fetchall()
+    return {row["name"]: row["pearls"] for row in rows}
+
+
+async def set_price(name: str, pearls: int) -> None:
+    async with _get_lock():
+        conn = get_conn()
+        conn.execute(
+            """
+            INSERT INTO prices (name, pearls) VALUES (?, ?)
+            ON CONFLICT(name) DO UPDATE SET pearls=excluded.pearls
+            """,
+            (name, pearls),
+        )
+        conn.commit()
+
+
+async def delete_price(name: str) -> bool:
+    """Delete a price entry. Returns True if it existed, False if not found."""
+    async with _get_lock():
+        conn = get_conn()
+        cur = conn.execute("DELETE FROM prices WHERE name = ?", (name,))
+        conn.commit()
+        return cur.rowcount > 0

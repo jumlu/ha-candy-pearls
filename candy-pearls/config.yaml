@@ -1,5 +1,5 @@
 name: Candy Pearls
-version: "0.1.6"
+version: "0.1.7"
 slug: candy_pearls
 description: AI-powered candy reward system for kids over Signal — the model handles conversation and pricing, Home Assistant stays the bank.
 url: https://github.com/jumlu/ha-candy-pearls
@@ -31,7 +31,6 @@ options:
   language: "en"
   sugar_per_pearl: 5
   require_confirmation: true
-  prices_entity: "input_text.perlen_preise"
   whitelist_uuids: []
   accounts: []
 
@@ -48,7 +47,6 @@ schema:
   language: list(en|de)
   sugar_per_pearl: int
   require_confirmation: bool
-  prices_entity: str
   whitelist_uuids:
     - str
   accounts:

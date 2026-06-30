@@ -1,3 +1,26 @@
+## 0.1.7 — 2026-06-30
+
+### Changed
+- Prices moved from HA `input_text` entity to a `prices` table in the
+  app's own SQLite database (`/data/memory.db`). The `prices_entity` config
+  option has been removed — no HA text helper needed anymore.
+- `set_price` / `delete_price` / `book` (save path) are now single atomic
+  SQLite operations instead of read-modify-write on an HA entity.
+- Price reads in the context block no longer go to HA — they're a direct
+  in-process SQLite query and can no longer fail.
+
+### Added
+- `/list` command in Signal: any group member can send `/list` to get the
+  current price list as a formatted Signal message (bypasses Claude, no API
+  token consumed). Localised in English and German.
+
+### Migration note
+- Prices from the old `input_text` entity are **not** migrated automatically.
+  Re-enter them via Signal after the update (tell an admin in any group to set
+  each price, or ask Claude to set them via `set_price`).
+
+---
+
 ## 0.1.6 — 2026-06-30
 
 ### Changed

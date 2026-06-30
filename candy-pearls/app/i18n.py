@@ -30,9 +30,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "label_max_balance": "Maximum balance",
         "label_prices": "Price list",
         "unit_pearls": "pearls",
-        "context_unavailable": "(Balance and price list could not be loaded.)",
+        "context_unavailable": "(Balance could not be loaded.)",
         # Attachment passthrough placeholder
         "attachment_placeholder": "[Attachment: {path} — image processing not active yet]",
+        # /list command
+        "cmd_list_header": "Price list:",
+        "cmd_list_empty": "The price list is empty. Ask an admin to add prices.",
         # Direct Signal fallbacks (bypass Claude)
         "no_response": "(No response)",
         "max_rounds_fallback": "I'm a bit confused right now — please try again.",
@@ -48,9 +51,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "label_max_balance": "Maximaler Kontostand",
         "label_prices": "Preisliste",
         "unit_pearls": "Perlen",
-        "context_unavailable": "(Kontostand und Preisliste konnten nicht geladen werden.)",
+        "context_unavailable": "(Kontostand konnte nicht geladen werden.)",
         # Attachment passthrough placeholder
         "attachment_placeholder": "[Anhang: {path} – Bildverarbeitung noch nicht aktiv]",
+        # /list command
+        "cmd_list_header": "Preisliste:",
+        "cmd_list_empty": "Die Preisliste ist leer. Bitte einen Admin, Preise hinzuzufügen.",
         # Direct Signal fallbacks (bypass Claude)
         "no_response": "(Keine Antwort)",
         "max_rounds_fallback": "Ich bin gerade etwas durcheinander — bitte nochmal versuchen.",

@@ -34,7 +34,6 @@ Since Home Assistant 2026.2 the UI calls add-ons **"Apps"** (menu: Settings → 
 - **signal-cli-rest-api** add-on (`bbernhard/signal-cli-rest-api`) — install from the App Store first, see dependency note below
 - **signal_websocket** HACS integration — exposes a `sensor.signal_<your_number>` entity for inbound messages
 - One `input_number` helper per child (min 0, max = that child's `max_balance`) — create via Settings → Devices & services → Helpers
-- One `input_text` helper for the shared price list (default entity: `input_text.perlen_preise`)
 
 ### Signal dependency
 
@@ -158,7 +157,6 @@ actions:
 | `sugar_per_pearl` | `5` | Grams of sugar that equal one pearl (pricing formula) |
 | `require_confirmation` | `true` | If `false` the AI books immediately without a propose/confirm step |
 | `timezone` | `UTC` | Local timezone for daily refill (e.g. `Europe/Berlin`) |
-| `prices_entity` | `input_text.perlen_preise` | HA entity holding the JSON price list |
 | `whitelist_uuids` | `[]` | UUIDs allowed to set/delete prices |
 | `accounts` | `[]` | List of children — see above |
 

@@ -8,6 +8,30 @@ This file is the repository-level changelog and mirrors it with additional detai
 
 ---
 
+## [0.1.7] — 2026-06-30
+
+### Changed
+- Prices moved from HA `input_text` (JSON blob, 255-char limit) to a proper
+  `prices` table in `/data/memory.db`. `prices_entity` config option removed.
+  No HA helper required for prices anymore.
+- `_set_price` / `_delete_price` in `tools.py`: single-row upsert/delete
+  instead of read-whole-dict → modify → write-whole-dict.
+- `_book` (save path): `memory.set_price()` instead of HA round-trip.
+- `harness.py`: prices fetched synchronously from SQLite (can't fail); only
+  the balance fetch can raise, keeping context-block fallback narrow.
+- `ha_client.py`: removed `get_prices()` and `set_prices()` — no longer used.
+
+### Added
+- `/list` slash command: any Signal group member sends `/list` and gets the
+  current price list as a formatted message. Handled directly in `harness.py`
+  before the Claude loop — no API token consumed, no memory stored. Localised.
+
+### Migration
+- Prices in the old `input_text` entity are not auto-migrated. Re-enter via
+  Signal after updating (admin can say "set gummy bears to 2 pearls" etc.).
+
+---
+
 ## [0.1.6] — 2026-06-30
 
 ### Changed

@@ -24,8 +24,8 @@ def _build_context_block(
     sender_name: str,
     is_admin: bool,
     language: str,
-    balance: float | None = None,
-    prices: dict | None = None,
+    balance: float | None,
+    prices: dict,
 ) -> str:
     """Build the per-turn context block injected into Claude's user message.
 
@@ -38,7 +38,7 @@ def _build_context_block(
         f"{L('context_header')}\n"
         f"{L('label_child')}: {account.name} | {L('label_sender')}: {sender_name}{admin_tag}\n"
     )
-    if balance is None or prices is None:
+    if balance is None:
         return header + L("context_unavailable") + "\n"
     return (
         header
@@ -46,6 +46,17 @@ def _build_context_block(
         + f"{L('label_max_balance')}: {account.max_balance} {L('unit_pearls')}\n"
         + f"{L('label_prices')}: {json.dumps(prices, ensure_ascii=False)}\n"
     )
+
+
+def _format_price_list(prices: dict[str, int], language: str) -> str:
+    """Format the price list for direct Signal output (used by /list command)."""
+    L = lambda key: i18n.t(key, language)
+    if not prices:
+        return L("cmd_list_empty")
+    lines = [L("cmd_list_header")]
+    for name, pearls in prices.items():
+        lines.append(f"  {name}: {pearls} {L('unit_pearls')}")
+    return "\n".join(lines)
 
 
 async def handle(
@@ -64,6 +75,12 @@ async def handle(
     is_admin = sender_uuid in settings.whitelist_uuids
     lang = settings.language
 
+    # --- Slash commands (bypass Claude, no memory storage) ---
+    if text.strip().lower() == "/list":
+        prices = memory.get_prices()
+        await signal.send(account.send_group_id, _format_price_list(prices, lang))
+        return
+
     # --- Load conversation history ---
     # History stores only raw message text (no context snapshots), so replayed
     # turns never show stale balance/price figures to Claude.
@@ -71,13 +88,14 @@ async def handle(
 
     # --- Build context block for the current turn only ---
     # This snapshot is injected into the live Claude call but NOT stored in memory.
+    # Prices come from SQLite (never fail); only the balance fetch can fail.
+    prices = memory.get_prices()
     try:
         balance = await ha.get_balance(account.balance_entity)
-        prices = await ha.get_prices(settings.prices_entity)
-        context_block = _build_context_block(account, sender_name, is_admin, lang, balance, prices)
     except Exception as exc:
-        logger.warning("Could not fetch live context from HA: %s", exc)
-        context_block = _build_context_block(account, sender_name, is_admin, lang)
+        logger.warning("Could not fetch balance from HA: %s", exc)
+        balance = None
+    context_block = _build_context_block(account, sender_name, is_admin, lang, balance, prices)
 
     # raw_user_text is what gets stored in memory (no snapshot).
     # full_user_content is what Claude sees this turn (snapshot prepended).

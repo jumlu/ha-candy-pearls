@@ -67,13 +67,6 @@ configuration:
       Wenn aktiviert (empfohlen), schlägt Claude zunächst eine Buchung vor, die eine
       Betreuungsperson bestätigen muss, bevor Perlen abgezogen werden. Wenn
       deaktiviert, bucht Claude sofort — sinnvoll für einfachere Setups.
-  prices_entity:
-    name: Preislisten-Entität
-    description: >-
-      Das HA-Helfer-Textfeld (input_text), das die aktuelle Preisliste als JSON
-      speichert. Erstelle einen „Text"-Helfer unter Einstellungen → Geräte &
-      Dienste → Helfer → Helfer hinzufügen → Text. Maximallänge auf mindestens 500
-      setzen. Die Entitäts-ID sieht so aus: „input_text.dein_name".
   whitelist_uuids:
     name: Berechtigte Signal-UUIDs (Admins)
     description: >-
