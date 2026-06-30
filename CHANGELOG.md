@@ -8,6 +8,33 @@ This file is the repository-level changelog and mirrors it with additional detai
 
 ---
 
+## [0.1.5] — 2026-06-30
+
+### Added
+- `candy-pearls/README.md` (App Store blurb) and `candy-pearls/DOCS.md`
+  (full Documentation tab) — required by the official app repository layout.
+  Confirmed against `home-assistant/addons-example`: every app folder needs
+  its own `README.md` and `DOCS.md`, distinct from the repo-root README.
+- `accounts` translations restructured to use the documented `fields:`
+  sub-key (one name/description per nested field) instead of a single
+  flattened paragraph, matching the pattern used for nested list/object
+  config in the official docs and example repo.
+
+### Audited (no change needed)
+- `icon.png` / `logo.png` — official example app ships non-square,
+  non-128px assets (238×250 and 725×250), so our 256×256 / 512×512 PNGs
+  are within accepted norms.
+- `host_network: true` — flagged by the Security docs as a general
+  anti-pattern ("Don't run on host network"), but kept intentionally: the
+  default `signal_api_url` (`http://127.0.0.1:8090`) targets the
+  signal-cli-rest-api app's host-loopback binding, which is only reachable
+  with host networking. This tradeoff is already documented in the
+  repo-root README ("Why `host_network: true`?"). Disabling it by default
+  would break Signal connectivity for most installs; left unchanged pending
+  a decision on switching the default to inter-app Docker networking.
+
+---
+
 ## [0.1.4] — 2026-06-30
 
 ### Fixed

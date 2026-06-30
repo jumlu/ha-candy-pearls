@@ -90,12 +90,30 @@ configuration:
       appears as "sourceUuid" in the request body. Only listed users can change prices.
   accounts:
     name: Children / Accounts
-    description: >-
-      One entry per child. Each entry needs: name (display name), recv_group_id
-      (Signal group ID for incoming messages), send_group_id (Signal group ID for
-      outgoing replies — usually the same), balance_entity (HA input_number helper
-      tracking the pearl balance), daily_refill (pearls added each day), and
-      max_balance (maximum pearls the balance can reach).
+    description: One entry per child. See the Documentation tab for how to find group IDs.
+    fields:
+      name:
+        name: Name
+        description: Display name used in Claude's prompts and the logs.
+      recv_group_id:
+        name: Receive Group ID
+        description: >-
+          Signal group ID for incoming messages from this child's group (the
+          envelope "groupId").
+      send_group_id:
+        name: Send Group ID
+        description: >-
+          Signal group ID used when replying via signal-cli-rest-api's
+          /v2/send (starts with "group.").
+      balance_entity:
+        name: Balance Entity
+        description: HA input_number entity holding this child's pearl balance.
+      daily_refill:
+        name: Daily Refill
+        description: Pearls added once per local calendar day.
+      max_balance:
+        name: Max Balance
+        description: The balance never exceeds this value.
 
 network:
   8099/tcp: Inbound webhook port for Signal messages forwarded by the HA automation. Change only if 8099 is already in use.

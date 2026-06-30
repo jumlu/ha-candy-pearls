@@ -94,12 +94,30 @@ configuration:
       einer Nachricht — sie erscheint als „sourceUuid" im Request-Body.
   accounts:
     name: Kinder / Konten
-    description: >-
-      Ein Eintrag pro Kind. Jeder Eintrag benötigt: name (Anzeigename), recv_group_id
-      (Signal-Gruppen-ID für eingehende Nachrichten), send_group_id (Signal-Gruppen-ID
-      für ausgehende Antworten — meist identisch), balance_entity (HA input_number-Helfer
-      für den Perlensaldo), daily_refill (täglich aufgeladene Perlen) und max_balance
-      (maximaler Perlensaldo).
+    description: Ein Eintrag pro Kind. Im Tab „Dokumentation" steht, wie man die Gruppen-IDs findet.
+    fields:
+      name:
+        name: Name
+        description: Anzeigename, der in Claudes Prompts und im Protokoll verwendet wird.
+      recv_group_id:
+        name: Empfangs-Gruppen-ID
+        description: >-
+          Signal-Gruppen-ID für eingehende Nachrichten aus der Gruppe dieses
+          Kindes (das Envelope-Feld „groupId").
+      send_group_id:
+        name: Sende-Gruppen-ID
+        description: >-
+          Signal-Gruppen-ID für Antworten über /v2/send von signal-cli-rest-api
+          (beginnt mit „group.").
+      balance_entity:
+        name: Saldo-Entität
+        description: HA input_number-Entität, die den Perlensaldo dieses Kindes speichert.
+      daily_refill:
+        name: Tägliche Aufladung
+        description: Perlen, die einmal pro lokalem Kalendertag hinzugefügt werden.
+      max_balance:
+        name: Maximaler Saldo
+        description: Der Saldo überschreitet diesen Wert nie.
 
 network:
   8099/tcp: Eingehender Webhook-Port für Signal-Nachrichten, die von der HA-Automatisierung weitergeleitet werden. Nur ändern, wenn 8099 bereits belegt ist.

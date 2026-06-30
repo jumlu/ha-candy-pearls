@@ -1,3 +1,24 @@
+## 0.1.5 — 2026-06-30
+
+### Added
+- `candy-pearls/README.md` and `candy-pearls/DOCS.md` — required by the
+  official app repository structure (confirmed against
+  `home-assistant/addons-example`); previously only a repo-root README.md
+  existed, so the App Store and Documentation tab had no app-level content.
+- `accounts` configuration translations now use the documented `fields:`
+  sub-structure (per-field name/description for `name`, `recv_group_id`,
+  `send_group_id`, `balance_entity`, `daily_refill`, `max_balance`) instead
+  of one flat paragraph.
+
+### Verified
+- All `translations/*.yaml` `configuration` keys now checked to exactly
+  match `config.yaml`'s `schema` keys (automated check, no drift).
+- `icon.png` / `logo.png` dimensions checked against the official example
+  app (which itself uses non-square, non-128px assets) — current sizes are
+  within accepted norms, no change needed.
+
+---
+
 ## 0.1.4 — 2026-06-30
 
 ### Fixed
