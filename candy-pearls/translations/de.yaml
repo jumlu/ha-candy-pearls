@@ -1,0 +1,110 @@
+configuration:
+  anthropic_api_key:
+    name: Anthropic API-Schlüssel
+    description: >-
+      Dein API-Schlüssel für Claude. Melde dich unter https://console.anthropic.com/
+      an, gehe zu „API Keys" und erstelle einen neuen Schlüssel. Halte ihn geheim —
+      pro API-Aufruf fallen Kosten an.
+  ha_token:
+    name: Home Assistant Langzeit-Token
+    description: >-
+      Zugriffstoken für die HA REST-API. Erstelle einen in Home Assistant: auf den
+      Benutzernamen (unten links) klicken → Tab „Sicherheit" → nach unten scrollen
+      zu „Langzeit-Zugriffstoken" → Token erstellen. Gib ihm einen beliebigen Namen
+      (z. B. „candy-pearls").
+  ha_base_url:
+    name: Home Assistant Basis-URL
+    description: >-
+      Interne URL deiner HA-Instanz. Behalte den Standardwert „http://supervisor/core"
+      beim Betrieb als Add-on — der Supervisor leitet die Anfragen automatisch weiter.
+  model:
+    name: Claude-Modell
+    description: >-
+      Claude-Modell für die Konversation. Haiku ist das schnellste und günstigste
+      und für ein Belohnungssystem in der Regel ausreichend. Sonnet bietet besseres
+      Denkvermögen. Opus ist das leistungsfähigste, aber auch das teuerste Modell.
+  max_tokens:
+    name: Maximale Antwort-Tokens
+    description: >-
+      Maximale Anzahl von Tokens, die Claude pro Antwort generieren darf. 1024
+      reicht für die meisten Gespräche; erhöhen, wenn Antworten abgeschnitten werden.
+  memory_turns:
+    name: Gesprächsgedächtnis (Nachrichten)
+    description: >-
+      Wie viele vergangene Nachrichtenpaare in jeden Claude-Aufruf einbezogen werden.
+      Höhere Werte liefern mehr Kontext, verbrauchen aber mehr Tokens und kosten mehr.
+  memory_minutes:
+    name: Gesprächsgedächtnis (Minuten)
+    description: >-
+      Nachrichten, die älter als diese Anzahl Minuten sind, werden aus dem Kontext
+      ausgeschlossen — auch wenn das Nachrichten-Limit sie einschließen würde.
+      Verhindert, dass veralteter Verlauf aus früheren Sitzungen übernommen wird.
+  signal_api_url:
+    name: Signal-API-URL
+    description: >-
+      URL der signal-cli-rest-api-Instanz. Installiere das Add-on „Signal Messenger"
+      von bbernhard aus dem HA Add-on-Store. Standardport ist 8090.
+      Beispiel: http://127.0.0.1:8090
+  signal_number:
+    name: Signal-Telefonnummer
+    description: >-
+      Die bei Signal registrierte Telefonnummer dieses Bots im E.164-Format.
+      Beispiel: +49123456789. Unter dieser Nummer sendet der Bot seine Nachrichten.
+      Zuerst in signal-cli-rest-api registrieren.
+  log_level:
+    name: Protokollierungsstufe
+    description: >-
+      Steuert, wie viel im Add-on-Protokoll aufgezeichnet wird. Im Normalbetrieb
+      „info" verwenden; zur Fehlersuche auf „debug" wechseln, um vollständige
+      Anfragen und Antworten zu sehen.
+  timezone:
+    name: Zeitzone
+    description: >-
+      Deine lokale Zeitzone. Legt fest, wann die tägliche Perlen-Aufladung
+      zurückgesetzt wird (um Mitternacht in der gewählten Zeitzone). Wähle die
+      nächstgelegene Stadt oder Region.
+  language:
+    name: Sprache
+    description: >-
+      Sprache für alle Nachrichten über Signal und für den Claude-System-Prompt.
+      „en" für Englisch, „de" für Deutsch.
+  sugar_per_pearl:
+    name: Zucker pro Perle (Gramm)
+    description: >-
+      Wie viele Gramm Zucker eine Süßwarenperle enthält. Claude nutzt diesen Wert,
+      wenn der Zuckergehalt von Süßigkeiten besprochen wird. Standard: 5 g pro Perle.
+  require_confirmation:
+    name: Buchungsbestätigung erforderlich
+    description: >-
+      Wenn aktiviert (empfohlen), schlägt Claude zunächst eine Buchung vor, die eine
+      Betreuungsperson bestätigen muss, bevor Perlen abgezogen werden. Wenn
+      deaktiviert, bucht Claude sofort — sinnvoll für einfachere Setups.
+  prices_entity:
+    name: Preislisten-Entität
+    description: >-
+      Das HA-Helfer-Textfeld (input_text), das die aktuelle Preisliste als JSON
+      speichert. Erstelle einen „Text"-Helfer unter Einstellungen → Geräte &
+      Dienste → Helfer → Helfer hinzufügen → Text. Maximallänge auf mindestens 500
+      setzen. Die Entitäts-ID sieht so aus: „input_text.dein_name".
+  whitelist_uuids:
+    name: Berechtigte Signal-UUIDs (Admins)
+    description: >-
+      Signal-UUIDs der Betreuungspersonen, die Preise setzen und löschen dürfen.
+      Die UUID findet man in den signal-cli-rest-api-Protokollen nach dem Senden
+      einer Nachricht — sie erscheint als „sourceUuid" im Request-Body.
+  accounts:
+    name: Kinder / Konten
+    description: >-
+      Ein Eintrag pro Kind. Jeder Eintrag benötigt: name (Anzeigename), recv_group_id
+      (Signal-Gruppen-ID für eingehende Nachrichten), send_group_id (Signal-Gruppen-ID
+      für ausgehende Antworten — meist identisch), balance_entity (HA input_number-Helfer
+      für den Perlensaldo), daily_refill (täglich aufgeladene Perlen) und max_balance
+      (maximaler Perlensaldo).
+
+network:
+  8099/tcp:
+    title: Eingehender Webhook-Port
+    description: >-
+      Port, auf dem das Add-on eingehende Signal-Nachrichten empfängt, die von der
+      HA-Automatisierung weitergeleitet werden. Standard ist 8099. Nur ändern, wenn
+      dieser Port bereits belegt ist.

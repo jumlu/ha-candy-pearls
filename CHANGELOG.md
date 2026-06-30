@@ -8,6 +8,22 @@ This file is the repository-level changelog and mirrors it with additional detai
 
 ---
 
+## [0.1.2] — 2026-06-30
+
+### Added
+- `translations/en.yaml` and `translations/de.yaml` — UI descriptions for every
+  configuration option, including direct links to https://console.anthropic.com/
+  and step-by-step instructions for HA long-lived token creation and Signal setup.
+  The HA Configuration tab now renders in English or German based on the browser
+  / HA language setting.
+- `model` changed from free-text to a dropdown: `claude-haiku-4-5-20251001`,
+  `claude-sonnet-4-6`, `claude-opus-4-8`, `claude-fable-5`.
+- `timezone` changed from free-text to a dropdown of ~65 common IANA timezones
+  (covers Europe, Americas, Asia, Africa, Oceania).
+- Port description added to `ports_description` shown in the Network tab.
+
+---
+
 ## [0.1.1] — 2026-06-30
 
 ### Fixed

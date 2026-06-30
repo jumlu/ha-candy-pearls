@@ -1,5 +1,5 @@
 name: Candy Pearls
-version: "0.1.1"
+version: "0.1.2"
 slug: candy_pearls
 description: AI-powered candy reward system for kids over Signal — the model handles conversation and pricing, Home Assistant stays the bank.
 url: https://github.com/jumlu/ha-candy-pearls
@@ -40,14 +40,14 @@ schema:
   anthropic_api_key: password
   ha_token: password
   ha_base_url: str
-  model: str
+  model: list(claude-haiku-4-5-20251001|claude-sonnet-4-6|claude-opus-4-8|claude-fable-5)
   max_tokens: int
   memory_turns: int
   memory_minutes: int
   signal_api_url: str
   signal_number: str
   log_level: list(debug|info|warning|error)
-  timezone: str
+  timezone: list(UTC|Africa/Cairo|Africa/Johannesburg|Africa/Lagos|America/Anchorage|America/Argentina/Buenos_Aires|America/Bogota|America/Chicago|America/Denver|America/Los_Angeles|America/Mexico_City|America/New_York|America/Phoenix|America/Santiago|America/Sao_Paulo|America/Toronto|America/Vancouver|Asia/Bangkok|Asia/Colombo|Asia/Dhaka|Asia/Dubai|Asia/Hong_Kong|Asia/Jakarta|Asia/Karachi|Asia/Kolkata|Asia/Kuala_Lumpur|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Taipei|Asia/Tehran|Asia/Tokyo|Atlantic/Azores|Australia/Adelaide|Australia/Brisbane|Australia/Melbourne|Australia/Perth|Australia/Sydney|Europe/Amsterdam|Europe/Athens|Europe/Belgrade|Europe/Berlin|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Copenhagen|Europe/Dublin|Europe/Helsinki|Europe/Istanbul|Europe/Kyiv|Europe/Lisbon|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Moscow|Europe/Oslo|Europe/Paris|Europe/Prague|Europe/Rome|Europe/Sofia|Europe/Stockholm|Europe/Vienna|Europe/Warsaw|Europe/Zurich|Pacific/Auckland|Pacific/Fiji|Pacific/Honolulu)
   language: list(en|de)
   sugar_per_pearl: int
   require_confirmation: bool

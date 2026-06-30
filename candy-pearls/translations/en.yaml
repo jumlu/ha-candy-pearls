@@ -1,0 +1,105 @@
+configuration:
+  anthropic_api_key:
+    name: Anthropic API Key
+    description: >-
+      Your API key for Claude. Sign in at https://console.anthropic.com/, go to
+      "API Keys", and generate a new key. Keep this secret — charges apply per API call.
+  ha_token:
+    name: Home Assistant Long-Lived Token
+    description: >-
+      Access token for the HA REST API. Create one in Home Assistant: click your
+      username (bottom-left) → Security tab → scroll to "Long-lived access tokens"
+      → Create Token. Give it any name (e.g. "candy-pearls").
+  ha_base_url:
+    name: Home Assistant Base URL
+    description: >-
+      Internal URL of your HA instance. Keep the default "http://supervisor/core"
+      when running as an add-on — the Supervisor routes this automatically.
+  model:
+    name: Claude Model
+    description: >-
+      Claude model used for conversation. Haiku is the fastest and cheapest and
+      is usually sufficient. Sonnet offers better reasoning. Opus is the most
+      capable but also the most expensive.
+  max_tokens:
+    name: Max Response Tokens
+    description: >-
+      Maximum number of tokens Claude may generate per reply. 1024 is enough for
+      most conversations; increase if replies get cut off.
+  memory_turns:
+    name: Conversation Memory (turns)
+    description: >-
+      How many past message pairs to include in each Claude call. Higher values
+      give better context but use more tokens and cost more.
+  memory_minutes:
+    name: Conversation Memory (minutes)
+    description: >-
+      Messages older than this many minutes are excluded from context even if
+      "Conversation Memory (turns)" would include them. Prevents stale history
+      from bleeding across sessions.
+  signal_api_url:
+    name: Signal API URL
+    description: >-
+      URL of the signal-cli-rest-api instance. Install the "Signal Messenger"
+      add-on by bbernhard from the HA add-on store. Default port is 8090.
+      Example: http://127.0.0.1:8090
+  signal_number:
+    name: Signal Phone Number
+    description: >-
+      The phone number registered with Signal for this bot, in E.164 format.
+      Example: +49123456789. This is the number the bot sends messages from.
+      Register it in signal-cli-rest-api first.
+  log_level:
+    name: Log Level
+    description: >-
+      Controls how much is written to the add-on log. Use "info" normally;
+      switch to "debug" when troubleshooting to see full request and response details.
+  timezone:
+    name: Timezone
+    description: >-
+      Your local timezone. Determines when the daily pearl refill resets (at
+      midnight in the selected timezone). Select the city or region closest to you.
+  language:
+    name: Language
+    description: >-
+      Language for all messages sent via Signal and for the Claude system prompt.
+      "en" for English, "de" for German (Deutsch).
+  sugar_per_pearl:
+    name: Sugar per Pearl (grams)
+    description: >-
+      How many grams of sugar one candy pearl represents. Claude uses this when
+      discussing the sugar content of treats. Default is 5 g per pearl.
+  require_confirmation:
+    name: Require Booking Confirmation
+    description: >-
+      When enabled (recommended), Claude first proposes a booking and the caregiver
+      must confirm before pearls are deducted. When disabled, Claude books
+      immediately — useful for simpler setups or younger children.
+  prices_entity:
+    name: Prices Entity
+    description: >-
+      The HA input_text helper that stores the current price list as JSON. Create
+      a "Text" helper in Settings → Devices & Services → Helpers → Add Helper →
+      Text. Set the maximum length to at least 500. The entity ID will look like
+      "input_text.your_name".
+  whitelist_uuids:
+    name: Admin Signal UUIDs
+    description: >-
+      Signal UUIDs of caregivers allowed to set and delete prices. To find a UUID,
+      check the signal-cli-rest-api logs after the person sends a message — it
+      appears as "sourceUuid" in the request body. Only listed users can change prices.
+  accounts:
+    name: Children / Accounts
+    description: >-
+      One entry per child. Each entry needs: name (display name), recv_group_id
+      (Signal group ID for incoming messages), send_group_id (Signal group ID for
+      outgoing replies — usually the same), balance_entity (HA input_number helper
+      tracking the pearl balance), daily_refill (pearls added each day), and
+      max_balance (maximum pearls the balance can reach).
+
+network:
+  8099/tcp:
+    title: Inbound Webhook Port
+    description: >-
+      Port the add-on listens on for incoming Signal messages forwarded by the HA
+      automation. Default is 8099. Change only if that port is already in use.

@@ -1,3 +1,16 @@
+## 0.1.2 — 2026-06-30
+
+### Added
+- UI descriptions and links for every configuration option (translations/en.yaml and translations/de.yaml).
+  The HA Configuration tab now shows a description for each field, including links
+  to the Anthropic console and instructions for creating HA long-lived tokens.
+- Configuration tab language follows the add-on `language` setting (English / German).
+- `model` is now a dropdown (Haiku / Sonnet / Opus / Fable) instead of a free-text field.
+- `timezone` is now a dropdown of ~65 IANA timezones instead of a free-text field.
+- Port description shown in the Network tab.
+
+---
+
 ## 0.1.1 — 2026-06-30
 
 ### Fixed
