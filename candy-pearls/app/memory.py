@@ -1,10 +1,12 @@
 """
 Persistent conversation memory backed by SQLite at /data/memory.db.
 
-Three tables:
+Tables:
   - messages:  per-group conversation history (role/content/timestamp)
   - proposals: one open proposal per group (cleared after booking or timeout)
   - refills:   last refill date per account (restart-safety guard)
+  - prices:    candy item prices in pearls
+  - contacts:  Signal senders seen so far (uuid → name, last_seen)
 
 Write functions are async and serialised through a module-level asyncio.Lock
 so concurrent coroutines (inbound request handlers + refill background task)
@@ -67,6 +69,12 @@ def _init_db(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS prices (
             name    TEXT PRIMARY KEY,
             pearls  INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS contacts (
+            uuid       TEXT PRIMARY KEY,
+            name       TEXT NOT NULL,
+            last_seen  TEXT NOT NULL
         );
     """)
     conn.commit()
@@ -244,3 +252,30 @@ async def delete_price(name: str) -> bool:
         cur = conn.execute("DELETE FROM prices WHERE name = ?", (name,))
         conn.commit()
         return cur.rowcount > 0
+
+
+# ---------------------------------------------------------------------------
+# Contacts (sync read, async upsert)
+# ---------------------------------------------------------------------------
+
+def get_contacts() -> list[dict]:
+    """Return all known contacts sorted by most recently seen."""
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT uuid, name, last_seen FROM contacts ORDER BY last_seen DESC"
+    ).fetchall()
+    return [{"uuid": r["uuid"], "name": r["name"], "last_seen": r["last_seen"]} for r in rows]
+
+
+async def upsert_contact(uuid: str, name: str) -> None:
+    """Record or refresh a Signal sender — updates name and last_seen timestamp."""
+    async with _get_lock():
+        conn = get_conn()
+        conn.execute(
+            """
+            INSERT INTO contacts (uuid, name, last_seen) VALUES (?, ?, ?)
+            ON CONFLICT(uuid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen
+            """,
+            (uuid, name, _now_iso()),
+        )
+        conn.commit()

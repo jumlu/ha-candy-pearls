@@ -19,7 +19,8 @@ from .config import AccountConfig, Settings, load_settings
 from .ha_client import HAClient
 from .harness import handle
 from .signal_client import SignalClient
-from . import i18n, refill
+from . import i18n, memory, refill
+from .admin import router as admin_router
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -83,6 +84,10 @@ async def lifespan(app: FastAPI):
     # Store the task handle so we can cancel it on shutdown and detect failures.
     _refill_task = asyncio.create_task(refill.loop(_settings, _ha), name="refill-loop")
 
+    # Expose shared objects to sub-routers via app.state.
+    app.state.signal = _signal
+    app.state.settings = _settings
+
     yield  # app runs here
 
     # --- Graceful shutdown ---
@@ -105,6 +110,7 @@ async def _wait_for_signal(logger: logging.Logger) -> None:
 
 
 app = FastAPI(title="Candy Pearls", lifespan=lifespan)
+app.include_router(admin_router)
 
 # ---------------------------------------------------------------------------
 # Request schema
@@ -135,6 +141,10 @@ async def inbound(msg: InboundMessage):
 
     if not _settings or not _ha or not _signal:
         raise HTTPException(status_code=503, detail="Not initialised")
+
+    # Track every sender UUID we see, regardless of group membership.
+    if msg.sender_uuid:
+        await memory.upsert_contact(msg.sender_uuid, msg.sender_name)
 
     # Map recv_group_id to account
     account: AccountConfig | None = None

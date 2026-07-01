@@ -57,9 +57,9 @@ apps. Instead this app checks at the network level:
    - `anthropic_api_key` — your Anthropic API key
    - `signal_number` — your sending Signal number (e.g. `+49123456789`)
    - `timezone` — your local timezone for correct daily refill timing
-   - `whitelist_uuids` — UUID(s) allowed to add/change/delete prices (find a
-     sender's UUID in `sensor.signal_<number>` →
-     `attributes.full_envelope.sourceUuid` after they send one message)
+   - `whitelist_uuids` — UUID(s) allowed to add/change/delete prices (easiest
+     way: open the **Admin** page in the HA sidebar — every sender's UUID
+     appears there after their first message)
    - `accounts` — one entry per child, see **Adding children** below
    - Optionally change `model` (default: `claude-haiku-4-5-20251001`)
 2. **Start** the app.

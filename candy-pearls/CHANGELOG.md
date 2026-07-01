@@ -1,3 +1,21 @@
+## 0.1.8 — 2026-07-01
+
+### Added
+- **Ingress admin page** embedded in the HA sidebar (Settings → Apps → Candy
+  Pearls → Open). Shows:
+  - *Signal Accounts* — numbers registered in signal-cli-rest-api, with copy buttons
+  - *Known Contacts* — every Signal sender seen so far (UUID + name + last-seen
+    timestamp), filterable by name or UUID; admin badge for whitelist members;
+    copy button per UUID (for pasting into `whitelist_uuids` config)
+  - *Configured Accounts* — the current per-child account table from config
+- `contacts` table in `/data/memory.db`: every inbound message upserts the
+  sender UUID and name so they appear in the admin page (even from unknown groups).
+
+### Changed
+- `config.yaml`: added `ingress: true` and `ingress_port: 8099`.
+
+---
+
 ## 0.1.7 — 2026-06-30
 
 ### Changed

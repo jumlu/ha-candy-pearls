@@ -33,6 +33,24 @@ class SignalClient:
             logger.warning("signal-cli-rest-api not reachable at %s: %s", self._api_url, exc)
             return False
 
+    async def get_accounts(self) -> list[str]:
+        """Return registered Signal account numbers from signal-cli-rest-api."""
+        url = f"{self._api_url}/v1/accounts"
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                data = resp.json()
+            if not isinstance(data, list):
+                return []
+            return [
+                item if isinstance(item, str) else item.get("number", str(item))
+                for item in data
+            ]
+        except Exception as exc:
+            logger.warning("Could not fetch Signal accounts: %s", exc)
+            return []
+
     async def send(self, send_group_id: str, text: str) -> None:
         url = f"{self._api_url}/v2/send"
         payload = {

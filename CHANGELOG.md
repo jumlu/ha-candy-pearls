@@ -8,6 +8,37 @@ This file is the repository-level changelog and mirrors it with additional detai
 
 ---
 
+## [0.1.8] — 2026-07-01
+
+### Added
+- **HA Ingress admin page** — served at the add-on's ingress URL and embedded in
+  the HA sidebar. Provides three live sections, all server-side rendered (no
+  external JS dependencies, no XHR calls that would break the Supervisor ingress
+  path-prefix proxy):
+  - *Signal Accounts*: numbers returned by `GET /v1/accounts` on signal-cli-rest-api,
+    each with a copy button (for the `signal_number` config field).
+  - *Known Contacts*: searchable table of every Signal sender the add-on has seen —
+    name, UUID, last-seen timestamp. Contacts are populated from inbound messages,
+    including messages from groups not yet in the accounts config. ADMIN badge for
+    UUIDs in the `whitelist_uuids` list. Copy button per UUID (for pasting into
+    `whitelist_uuids` or sharing with support).
+  - *Configured Accounts*: read-only view of the current `accounts` list from config.
+- `contacts` SQLite table in `/data/memory.db`: upserting `sender_uuid` + `sender_name`
+  on every inbound message (before group validation) ensures the admin page
+  accumulates a complete contact list for UUID discovery.
+- `get_accounts()` on `SignalClient`: `GET /v1/accounts` with graceful error handling.
+- `get_contacts()` / `upsert_contact()` in `memory.py`.
+- `candy-pearls/app/admin.py`: FastAPI `APIRouter` with the `GET /` ingress route.
+
+### Changed
+- `config.yaml`: added `ingress: true` and `ingress_port: 8099`.
+- `main.py`: includes admin router; exposes `app.state.signal` and
+  `app.state.settings` for the admin route; upserts contact on every inbound.
+- `README.md` / `DOCS.md`: updated `whitelist_uuids` instructions to mention the
+  admin page as the primary way to find UUIDs.
+
+---
+
 ## [0.1.7] — 2026-06-30
 
 ### Changed

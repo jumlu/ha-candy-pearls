@@ -1,5 +1,5 @@
 name: Candy Pearls
-version: "0.1.7"
+version: "0.1.8"
 slug: candy_pearls
 description: AI-powered candy reward system for kids over Signal — the model handles conversation and pricing, Home Assistant stays the bank.
 url: https://github.com/jumlu/ha-candy-pearls
@@ -9,6 +9,8 @@ arch:
 init: false
 host_network: true
 homeassistant_api: true
+ingress: true
+ingress_port: 8099
 startup: application
 boot: auto
 map: []
